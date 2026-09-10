@@ -1,0 +1,28 @@
+{
+  "name": "wcag-allyant",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "convert-csv": "python3 scripts/convert-csv.py"
+  },
+  "dependencies": {
+    "@trimble-oss/moduswebcomponents": "1.16.0",
+    "@trimble-oss/moduswebcomponents-react": "1.16.0-react18",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.9.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.13",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "tailwindcss": "^4.1.13",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.5"
+  }
+}

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="WCAG Allyant — local ticket tracker for Trimble Unity Construct accessibility audit issues."
+    />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+    <title>WCAG Allyant</title>
+
+    <script>
+      (function () {
+        try {
+          var config = null
+          try {
+            config = JSON.parse(localStorage.getItem('modus-theme-config') || 'null')
+          } catch (e) {
+            config = null
+          }
+          var choice = localStorage.getItem('theme') || (config && config.mode) || 'system'
+          var systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+          var resolved = choice === 'system' ? (systemDark ? 'dark' : 'light') : choice
+          if (resolved !== 'dark' && resolved !== 'light') resolved = 'light'
+          var el = document.documentElement
+          el.setAttribute(
+            'data-theme',
+            resolved === 'dark' ? 'modus-modern-dark' : 'modus-modern-light',
+          )
+          el.setAttribute('data-mode', resolved)
+          el.classList.remove('light', 'dark')
+          el.classList.add(resolved)
+          if (!localStorage.getItem('theme')) {
+            localStorage.setItem('theme', choice === 'system' ? 'system' : resolved)
+          }
+          localStorage.setItem(
+            'modus-theme-config',
+            JSON.stringify({
+              theme: (config && config.theme) || 'modus-modern',
+              mode: choice === 'system' ? 'system' : resolved,
+            }),
+          )
+        } catch (e) {
+          /* no-op */
+        }
+      })()
+    </script>
+
+    <link
+      rel="preload"
+      href="https://cdn.jsdelivr.net/npm/@trimble-oss/modus-icons@1/dist/modus-outlined/fonts/modus-icons.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="https://cdn.jsdelivr.net/npm/@trimble-oss/modus-icons@1/dist/modus-solid/fonts/modus-icons.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="/modus-web-components/modus-icons.css" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
