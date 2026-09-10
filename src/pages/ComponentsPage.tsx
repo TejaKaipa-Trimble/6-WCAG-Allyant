@@ -428,7 +428,9 @@ export default function ComponentsPage() {
             <div
               className={listCount > 0 ? 'app-is-hidden' : undefined}
               aria-hidden={listCount > 0}
-              inert={listCount > 0 ? true : undefined}
+              ref={(el) => {
+                if (el) el.inert = listCount > 0
+              }}
             >
               <ModusWcTypography
                 hierarchy="p"
