@@ -13,7 +13,13 @@ import {
 import type { ISelectOption } from '@trimble-oss/moduswebcomponents'
 import PageHeader from '../components/PageHeader'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { buildTicketDetailCrumbs, isLocalStatus, ticketDetailPath } from '../lib/tickets'
+import {
+  backLabelForPath,
+  buildTicketDetailCrumbs,
+  isLocalStatus,
+  resolveBackPath,
+  ticketDetailPath,
+} from '../lib/tickets'
 import { useTicketStore } from '../store/TicketStore'
 import { LOCAL_STATUS_LABEL, type LocalStatus } from '../types/ticket'
 import { readInputString } from '../utils/modusFormEvents'
@@ -38,6 +44,7 @@ export default function TicketDetailPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const returnTo = searchParams.get('returnTo')
+  const backTo = resolveBackPath(returnTo)
   const { tickets, getTicket, setStatus, setNotes, addComment } = useTicketStore()
   const ticket = getTicket(hubId)
   const [draftComment, setDraftComment] = useState('')
@@ -69,6 +76,8 @@ export default function TicketDetailPage() {
       <div className="app-page">
         <PageHeader
           title="Ticket not found"
+          backTo={backTo}
+          backLabel={backLabelForPath(backTo)}
           crumbs={
             returnTo?.startsWith('/components')
               ? [{ label: 'Components', url: returnTo }, { label: 'Missing' }]
@@ -91,6 +100,8 @@ export default function TicketDetailPage() {
       <PageHeader
         title={`HUB ${ticket.hubId}`}
         description={ticket.pageName}
+        backTo={backTo}
+        backLabel={backLabelForPath(backTo)}
         crumbs={buildTicketDetailCrumbs(ticket, returnTo)}
         actions={
           <>

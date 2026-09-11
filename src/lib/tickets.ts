@@ -87,10 +87,25 @@ export function safeReturnTo(value: string | null): string | null {
   return value
 }
 
+export function resolveBackPath(returnTo?: string | null): string {
+  return safeReturnTo(returnTo ?? null) ?? '/tickets'
+}
+
 export function ticketDetailPath(hubId: string, returnTo?: string | null): string {
   const safe = safeReturnTo(returnTo ?? null)
   if (!safe) return `/tickets/${hubId}`
   return `/tickets/${hubId}?returnTo=${encodeURIComponent(safe)}`
+}
+
+function splitPathQuery(path: string): { pathname: string; params: URLSearchParams } {
+  const index = path.indexOf('?')
+  if (index === -1) return { pathname: path, params: new URLSearchParams() }
+  return { pathname: path.slice(0, index), params: new URLSearchParams(path.slice(index + 1)) }
+}
+
+function joinPathQuery(pathname: string, params: URLSearchParams): string {
+  const query = params.toString()
+  return query ? `${pathname}?${query}` : pathname
 }
 
 export function buildTicketDetailCrumbs(
@@ -100,12 +115,17 @@ export function buildTicketDetailCrumbs(
   const safe = safeReturnTo(returnTo ?? null)
 
   if (safe?.startsWith('/components')) {
-    const selected =
-      new URLSearchParams(safe.includes('?') ? safe.split('?')[1] : '').get('selected') ??
-      ticket.component
-    const crumbs: BreadcrumbItem[] = [{ label: 'Components', url: safe }]
-    const itemLabel = selected?.trim() || ticket.component?.trim()
-    if (itemLabel) crumbs.push({ label: itemLabel })
+    const { pathname, params } = splitPathQuery(safe)
+    const selectedKey = params.get('selected')?.trim() || componentKey(ticket.component ?? '')
+    const itemLabel = componentLabel(selectedKey)
+
+    const listParams = new URLSearchParams(params)
+    listParams.delete('selected')
+    const selectedParams = new URLSearchParams(params)
+    if (selectedKey) selectedParams.set('selected', selectedKey)
+
+    const crumbs: BreadcrumbItem[] = [{ label: 'Components', url: joinPathQuery(pathname, listParams) }]
+    if (itemLabel) crumbs.push({ label: itemLabel, url: joinPathQuery(pathname, selectedParams) })
     crumbs.push({ label: `HUB ${ticket.hubId}` })
     return crumbs
   }
@@ -160,12 +180,14 @@ export type ComponentPageExtras = {
   selected: string
   remainingOnly: boolean
   sort: ComponentSort
+  open: string[]
 }
 
 export const EMPTY_COMPONENT_EXTRAS: ComponentPageExtras = {
   selected: '',
   remainingOnly: false,
   sort: 'remaining',
+  open: [],
 }
 
 export type ComponentGroup = {
@@ -303,6 +325,7 @@ export function componentsPath(filters: TicketFilters, extras: ComponentPageExtr
   if (extras.selected) params.set('selected', extras.selected)
   if (extras.remainingOnly) params.set('remaining', 'yes')
   if (extras.sort === 'name') params.set('sort', 'name')
+  if (extras.open.length) params.set('open', extras.open.join(','))
   const query = params.toString()
   return query ? `/components?${query}` : '/components'
 }
@@ -313,5 +336,17 @@ export function componentExtrasFromSearch(search: string): ComponentPageExtras {
     selected: params.get('selected') ?? '',
     remainingOnly: params.get('remaining') === 'yes',
     sort: params.get('sort') === 'name' ? 'name' : 'remaining',
+    open: (params.get('open') ?? '')
+      .split(',')
+      .map((slug) => slug.trim())
+      .filter(Boolean),
   }
+}
+
+export function backLabelForPath(path: string): string {
+  if (path.startsWith('/components')) return 'Back to Components'
+  if (path.startsWith('/pages')) return 'Back to Pages'
+  if (path.startsWith('/tickets')) return 'Back to tickets'
+  if (path === '/') return 'Back to Dashboard'
+  return 'Back'
 }

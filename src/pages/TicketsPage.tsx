@@ -17,6 +17,7 @@ import {
   filterTickets,
   filtersFromSearch,
   isLocalStatus,
+  ticketDetailPath,
   ticketsPath,
   uniqueSorted,
 } from '../lib/tickets'
@@ -273,7 +274,7 @@ export default function TicketsPage() {
             }}
             onRowClick={(event: CustomEvent<{ row: { hubId?: string } }>) => {
               const hubId = event.detail?.row?.hubId
-              if (hubId) navigate(`/tickets/${hubId}`)
+              if (hubId) navigate(ticketDetailPath(hubId, ticketsPath(filters)))
             }}
           />
         </div>

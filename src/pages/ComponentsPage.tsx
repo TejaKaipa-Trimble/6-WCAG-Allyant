@@ -77,10 +77,6 @@ export default function ComponentsPage() {
   const { tickets } = useTicketStore()
   const filters = useMemo(() => filtersFromSearch(searchParams.toString()), [searchParams])
   const extras = useMemo(() => componentExtrasFromSearch(searchParams.toString()), [searchParams])
-  const componentsReturnTo = useMemo(
-    () => componentsPath(filters, extras),
-    [filters, extras],
-  )
   const [page, setPage] = useState(1)
   const userPicked = useRef(false)
 
@@ -126,7 +122,11 @@ export default function ComponentsPage() {
     [visibleBranchSlugs],
   )
 
-  const [openSlugs, setOpenSlugs] = useState<string[]>([])
+  const [openSlugs, setOpenSlugs] = useState<string[]>(() => extras.open)
+  const componentsReturnTo = useMemo(
+    () => componentsPath(filters, { ...extras, open: openSlugs }),
+    [extras, filters, openSlugs],
+  )
 
   const selectedGroup: ComponentGroup | undefined = useMemo(() => {
     if (groups.length === 0) return undefined
@@ -136,15 +136,24 @@ export default function ComponentsPage() {
   useEffect(() => {
     if (!selectedGroup) return
     if (extras.selected === selectedGroup.key) return
-    navigate(componentsPath(filters, { ...extras, selected: selectedGroup.key }), { replace: true })
-  }, [extras, filters, navigate, selectedGroup])
+    const parent = findModusBranchForGroup(catalogBranches, selectedGroup.key)
+    const open =
+      parent && !openSlugs.includes(parent.slug) ? [...openSlugs, parent.slug] : openSlugs
+    navigate(componentsPath(filters, { ...extras, selected: selectedGroup.key, open }), {
+      replace: true,
+    })
+  }, [catalogBranches, extras, filters, navigate, openSlugs, selectedGroup])
 
   useEffect(() => {
     if (!selectedGroup) return
     const parent = findModusBranchForGroup(catalogBranches, selectedGroup.key)
-    if (!parent) return
-    setOpenSlugs((prev) => (prev.includes(parent.slug) ? prev : [...prev, parent.slug]))
-  }, [catalogBranches, selectedGroup])
+    if (!parent || openSlugs.includes(parent.slug)) return
+    const next = [...openSlugs, parent.slug]
+    setOpenSlugs(next)
+    if (!extras.open.includes(parent.slug)) {
+      navigate(componentsPath(filters, { ...extras, open: next }), { replace: true })
+    }
+  }, [catalogBranches, extras, filters, navigate, openSlugs, selectedGroup])
 
   useEffect(() => {
     if (!filters.q.trim()) return
@@ -200,7 +209,7 @@ export default function ComponentsPage() {
     { label: 'Name A–Z', value: 'name' },
   ]
 
-  const go = (nextFilters: TicketFilters, nextExtras = extras) => {
+  const go = (nextFilters: TicketFilters, nextExtras = { ...extras, open: openSlugs }) => {
     navigate(componentsPath(nextFilters, nextExtras))
   }
 
@@ -210,7 +219,11 @@ export default function ComponentsPage() {
 
   const selectGroup = (key: string) => {
     userPicked.current = true
-    go(filters, { ...extras, selected: key })
+    const parent = findModusBranchForGroup(catalogBranches, key)
+    const open =
+      parent && !openSlugs.includes(parent.slug) ? [...openSlugs, parent.slug] : openSlugs
+    if (parent && !openSlugs.includes(parent.slug)) setOpenSlugs(open)
+    go(filters, { ...extras, selected: key, open })
   }
 
   const columns: ITableColumn[] = useMemo(
@@ -316,7 +329,12 @@ export default function ComponentsPage() {
               color="tertiary"
               size="sm"
               onButtonClick={() =>
-                go(EMPTY_FILTERS, { ...EMPTY_COMPONENT_EXTRAS, selected: extras.selected, sort: extras.sort })
+                go(EMPTY_FILTERS, {
+                  ...EMPTY_COMPONENT_EXTRAS,
+                  selected: extras.selected,
+                  sort: extras.sort,
+                  open: extras.open,
+                })
               }
             >
               Clear filters
@@ -499,10 +517,15 @@ export default function ComponentsPage() {
                     onExpandedChange={(event: CustomEvent<{ expanded: boolean }>) => {
                       const nextOpen = event.detail.expanded
                       setOpenSlugs((prev) => {
-                        if (nextOpen) {
-                          return prev.includes(branch.slug) ? prev : [...prev, branch.slug]
-                        }
-                        return prev.filter((slug) => slug !== branch.slug)
+                        const next = nextOpen
+                          ? prev.includes(branch.slug)
+                            ? prev
+                            : [...prev, branch.slug]
+                          : prev.filter((slug) => slug !== branch.slug)
+                        navigate(componentsPath(filters, { ...extras, open: next }), {
+                          replace: true,
+                        })
+                        return next
                       })
                     }}
                   >
