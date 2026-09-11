@@ -413,16 +413,38 @@ modus-wc-side-navigation modus-wc-menu-item {
   margin: 0;
 }
 
+.components-filter-card {
+  background-color: var(--modus-wc-color-base-100);
+}
+
 .components-filter-body {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
-.components-chip-section {
-  display: flex;
-  flex-direction: column;
+.components-filter-grid {
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .components-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .components-filter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .components-filter-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
 }
 
 .components-detail-hero {

@@ -2,13 +2,25 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
 import { LOCAL_STORE_KEY } from '../constants/shellLayout'
+import { isSupabaseConfigured } from '../lib/supabaseClient'
+import {
+  fetchOverlays,
+  insertComment,
+  replaceAllOverlays,
+  subscribeTicketChanges,
+  upsertOverlay,
+} from '../lib/ticketRemote'
 import { mergeTickets } from '../lib/tickets'
 import type { LocalStatus, Ticket, TicketComment, TicketOverlay } from '../types/ticket'
+
+const MIGRATED_KEY = 'wcag-allyant-supabase-migrated-v1'
 
 type StoreShape = {
   version: 1
@@ -18,6 +30,8 @@ type StoreShape = {
 type TicketStoreValue = {
   tickets: Ticket[]
   overlays: Record<string, TicketOverlay>
+  ready: boolean
+  syncError: string | null
   getTicket: (hubId: string) => Ticket | undefined
   setStatus: (hubId: string, status: LocalStatus) => void
   setNotes: (hubId: string, notes: string) => void
@@ -33,7 +47,7 @@ function emptyStore(): StoreShape {
   return { version: 1, tickets: {} }
 }
 
-function loadStore(): StoreShape {
+function loadLocalStore(): StoreShape {
   try {
     const raw = localStorage.getItem(LOCAL_STORE_KEY)
     if (!raw) return emptyStore()
@@ -47,8 +61,8 @@ function loadStore(): StoreShape {
   }
 }
 
-function persist(store: StoreShape): void {
-  localStorage.setItem(LOCAL_STORE_KEY, JSON.stringify(store))
+function cacheLocal(overlays: Record<string, TicketOverlay>): void {
+  localStorage.setItem(LOCAL_STORE_KEY, JSON.stringify({ version: 1, tickets: overlays }))
 }
 
 function overlayFor(
@@ -63,15 +77,100 @@ function overlayFor(
   }
 }
 
+function messageFromUnknown(error: unknown): string {
+  return error instanceof Error ? error.message : 'Could not sync with Supabase.'
+}
+
 export function TicketStoreProvider({ children }: { children: ReactNode }) {
   const [overlays, setOverlays] = useState<Record<string, TicketOverlay>>(
-    () => loadStore().tickets,
+    () => loadLocalStore().tickets,
   )
+  const [ready, setReady] = useState(!isSupabaseConfigured())
+  const [syncError, setSyncError] = useState<string | null>(
+    isSupabaseConfigured()
+      ? null
+      : 'Supabase is not configured. Progress is staying in this browser only.',
+  )
+  const overlaysRef = useRef(overlays)
+  const skipRealtimeRef = useRef(0)
 
-  const commit = useCallback((next: Record<string, TicketOverlay>) => {
-    setOverlays(next)
-    persist({ version: 1, tickets: next })
+  useEffect(() => {
+    overlaysRef.current = overlays
+  }, [overlays])
+
+  const hydrateFromRemote = useCallback(async () => {
+    if (!isSupabaseConfigured()) {
+      setReady(true)
+      return
+    }
+    try {
+      const remote = await fetchOverlays()
+      const local = loadLocalStore().tickets
+      const migrated = localStorage.getItem(MIGRATED_KEY) === '1'
+      if (Object.keys(remote).length === 0 && Object.keys(local).length > 0 && !migrated) {
+        await replaceAllOverlays(local)
+        localStorage.setItem(MIGRATED_KEY, '1')
+        cacheLocal(local)
+        setOverlays(local)
+      } else {
+        localStorage.setItem(MIGRATED_KEY, '1')
+        cacheLocal(remote)
+        setOverlays(remote)
+      }
+      setSyncError(null)
+    } catch (error) {
+      setSyncError(messageFromUnknown(error))
+    } finally {
+      setReady(true)
+    }
   }, [])
+
+  useEffect(() => {
+    void hydrateFromRemote()
+  }, [hydrateFromRemote])
+
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return undefined
+    let debounce: number | undefined
+    const unsubscribe = subscribeTicketChanges(() => {
+      if (skipRealtimeRef.current > 0) return
+      window.clearTimeout(debounce)
+      debounce = window.setTimeout(() => {
+        void hydrateFromRemote()
+      }, 200)
+    })
+    return () => {
+      window.clearTimeout(debounce)
+      unsubscribe()
+    }
+  }, [hydrateFromRemote])
+
+  const commitOverlay = useCallback(
+    async (hubId: string, nextOverlay: TicketOverlay, extra?: { comment?: TicketComment }) => {
+      const previous = overlaysRef.current
+      const next = { ...previous, [hubId]: nextOverlay }
+      skipRealtimeRef.current += 1
+      setOverlays(next)
+      cacheLocal(next)
+      try {
+        if (extra?.comment) {
+          await insertComment(hubId, nextOverlay, extra.comment)
+        } else {
+          await upsertOverlay(hubId, nextOverlay)
+        }
+        setSyncError(null)
+      } catch (error) {
+        setOverlays(previous)
+        cacheLocal(previous)
+        setSyncError(messageFromUnknown(error))
+      } finally {
+        window.setTimeout(() => {
+          skipRealtimeRef.current = Math.max(0, skipRealtimeRef.current - 1)
+        }, 400)
+      }
+    },
+    [],
+  )
 
   const tickets = useMemo(() => mergeTickets(overlays), [overlays])
 
@@ -82,22 +181,16 @@ export function TicketStoreProvider({ children }: { children: ReactNode }) {
 
   const setStatus = useCallback(
     (hubId: string, status: LocalStatus) => {
-      commit({
-        ...overlays,
-        [hubId]: overlayFor(overlays[hubId], { status }),
-      })
+      void commitOverlay(hubId, overlayFor(overlaysRef.current[hubId], { status }))
     },
-    [commit, overlays],
+    [commitOverlay],
   )
 
   const setNotes = useCallback(
     (hubId: string, notes: string) => {
-      commit({
-        ...overlays,
-        [hubId]: overlayFor(overlays[hubId], { notes }),
-      })
+      void commitOverlay(hubId, overlayFor(overlaysRef.current[hubId], { notes }))
     },
-    [commit, overlays],
+    [commitOverlay],
   )
 
   const addComment = useCallback(
@@ -109,15 +202,16 @@ export function TicketStoreProvider({ children }: { children: ReactNode }) {
         text: trimmed,
         createdAt: new Date().toISOString(),
       }
-      const current = overlays[hubId]
-      commit({
-        ...overlays,
-        [hubId]: overlayFor(current, {
+      const current = overlaysRef.current[hubId]
+      void commitOverlay(
+        hubId,
+        overlayFor(current, {
           comments: [...(current?.comments ?? []), comment],
         }),
-      })
+        { comment },
+      )
     },
-    [commit, overlays],
+    [commitOverlay],
   )
 
   const exportProgress = useCallback(
@@ -125,25 +219,64 @@ export function TicketStoreProvider({ children }: { children: ReactNode }) {
     [overlays],
   )
 
-  const importProgress = useCallback(
-    (json: string) => {
-      const parsed = JSON.parse(json) as StoreShape
-      if (parsed?.version !== 1 || typeof parsed.tickets !== 'object') {
-        throw new Error('Invalid progress file')
+  const importProgress = useCallback((json: string) => {
+    const parsed = JSON.parse(json) as StoreShape
+    if (parsed?.version !== 1 || typeof parsed.tickets !== 'object') {
+      throw new Error('Invalid progress file')
+    }
+    const previous = overlaysRef.current
+    skipRealtimeRef.current += 1
+    setOverlays(parsed.tickets)
+    cacheLocal(parsed.tickets)
+    void (async () => {
+      try {
+        if (isSupabaseConfigured()) {
+          await replaceAllOverlays(parsed.tickets)
+          localStorage.setItem(MIGRATED_KEY, '1')
+        }
+        setSyncError(null)
+      } catch (error) {
+        setOverlays(previous)
+        cacheLocal(previous)
+        setSyncError(messageFromUnknown(error))
+      } finally {
+        window.setTimeout(() => {
+          skipRealtimeRef.current = Math.max(0, skipRealtimeRef.current - 1)
+        }, 400)
       }
-      commit(parsed.tickets)
-    },
-    [commit],
-  )
+    })()
+  }, [])
 
   const resetProgress = useCallback(() => {
-    commit({})
-  }, [commit])
+    const previous = overlaysRef.current
+    skipRealtimeRef.current += 1
+    setOverlays({})
+    cacheLocal({})
+    void (async () => {
+      try {
+        if (isSupabaseConfigured()) {
+          await replaceAllOverlays({})
+          localStorage.setItem(MIGRATED_KEY, '1')
+        }
+        setSyncError(null)
+      } catch (error) {
+        setOverlays(previous)
+        cacheLocal(previous)
+        setSyncError(messageFromUnknown(error))
+      } finally {
+        window.setTimeout(() => {
+          skipRealtimeRef.current = Math.max(0, skipRealtimeRef.current - 1)
+        }, 400)
+      }
+    })()
+  }, [])
 
   const value = useMemo<TicketStoreValue>(
     () => ({
       tickets,
       overlays,
+      ready,
+      syncError,
       getTicket,
       setStatus,
       setNotes,
@@ -155,6 +288,8 @@ export function TicketStoreProvider({ children }: { children: ReactNode }) {
     [
       tickets,
       overlays,
+      ready,
+      syncError,
       getTicket,
       setStatus,
       setNotes,

@@ -22,6 +22,7 @@ import {
   XL_EXPANDED_MQ,
 } from '../constants/shellLayout'
 import { useMediaQuery } from '../hooks/useMediaQuery'
+import { useTicketStore } from '../store/TicketStore'
 
 type NavItem = {
   value: string
@@ -108,6 +109,7 @@ type AppShellProps = {
 export default function AppShell({ children }: AppShellProps) {
   const navigate = useNavigate()
   const location = useLocation()
+  const { syncError } = useTicketStore()
   const isDesktop = useMediaQuery(PUSH_LAYOUT_MQ)
   const isXl = useMediaQuery(XL_EXPANDED_MQ)
   const isNavbarWide = useMediaQuery(NAVBAR_WIDE_MQ)
@@ -258,7 +260,7 @@ export default function AppShell({ children }: AppShellProps) {
         onAppsClick={() => showToast('Apps launcher is not wired in this local tracker.')}
         onNotificationsClick={() => showToast('No notifications in the local prototype.')}
         onHelpClick={() =>
-          showToast('Status, notes, and comments are stored in this browser only.')
+          showToast('Status, notes, and comments sync to the wcag_allyant Supabase tables.')
         }
         onTrimbleLogoClick={() => navigate('/')}
       >
@@ -312,6 +314,15 @@ export default function AppShell({ children }: AppShellProps) {
         </div>
 
         <main id={MAIN_CONTENT_ID} className="page-main" tabIndex={-1}>
+          {syncError ? (
+            <div className="w-full max-w-7xl mx-auto min-w-0 px-4 pt-4">
+              <ModusWcAlert
+                variant="error"
+                alertTitle="Could not sync progress"
+                alertDescription={syncError}
+              />
+            </div>
+          ) : null}
           {children}
         </main>
       </div>

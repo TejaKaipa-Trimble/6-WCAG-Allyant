@@ -368,13 +368,9 @@ export default function ComponentsPage() {
         />
       </section>
 
-      <ModusWcCard bordered={false} padding="compact">
-        <div slot="title" className="flex w-full min-w-0 items-center justify-start gap-2 mb-4">
-          <ModusWcIcon name="filter" decorative />
-          <ModusWcTypography hierarchy="h2" size="md" weight="semibold" label="Refine results" />
-        </div>
+      <ModusWcCard bordered={false} padding="compact" customClass="components-filter-card" aria-label="Filters">
         <div className="components-filter-body">
-          <div className="app-filter-grid">
+          <div className="components-filter-grid">
             <ModusWcTextInput
               label="Search"
               size="sm"
@@ -422,16 +418,7 @@ export default function ComponentsPage() {
               }}
             />
           </div>
-          <ModusWcDivider />
-          <div className="components-chip-section">
-            <ModusWcTypography
-              hierarchy="p"
-              size="xs"
-              weight="semibold"
-              customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0"
-              label="Quick filters"
-            />
-            <div className="app-chip-row" role="group" aria-label="Quick filters">
+          <div className="app-chip-row" role="group" aria-label="Quick filters">
             <ModusWcChip
               label="High risk"
               size="sm"
@@ -470,7 +457,6 @@ export default function ComponentsPage() {
                 extras.remainingOnly ? 'Remaining work filter, active' : 'Remaining work filter'
               }
             />
-            </div>
           </div>
         </div>
       </ModusWcCard>
