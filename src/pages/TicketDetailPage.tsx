@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ModusWcAlert,
   ModusWcButton,
@@ -13,9 +13,9 @@ import {
 import type { ISelectOption } from '@trimble-oss/moduswebcomponents'
 import PageHeader from '../components/PageHeader'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { isLocalStatus, ticketsPath } from '../lib/tickets'
+import { buildTicketDetailCrumbs, isLocalStatus, ticketDetailPath } from '../lib/tickets'
 import { useTicketStore } from '../store/TicketStore'
-import { EMPTY_FILTERS, LOCAL_STATUS_LABEL, type LocalStatus } from '../types/ticket'
+import { LOCAL_STATUS_LABEL, type LocalStatus } from '../types/ticket'
 import { readInputString } from '../utils/modusFormEvents'
 
 const STATUS_OPTIONS: ISelectOption[] = Object.entries(LOCAL_STATUS_LABEL).map(
@@ -35,7 +35,9 @@ function formatWhen(iso: string): string {
 
 export default function TicketDetailPage() {
   const { hubId = '' } = useParams()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const returnTo = searchParams.get('returnTo')
   const { tickets, getTicket, setStatus, setNotes, addComment } = useTicketStore()
   const ticket = getTicket(hubId)
   const [draftComment, setDraftComment] = useState('')
@@ -67,7 +69,11 @@ export default function TicketDetailPage() {
       <div className="app-page">
         <PageHeader
           title="Ticket not found"
-          crumbs={[{ label: 'Tickets', url: '/tickets' }, { label: 'Missing' }]}
+          crumbs={
+            returnTo?.startsWith('/components')
+              ? [{ label: 'Components', url: returnTo }, { label: 'Missing' }]
+              : [{ label: 'Tickets', url: '/tickets' }, { label: 'Missing' }]
+          }
         />
         <ModusWcAlert
           variant="warning"
@@ -85,11 +91,7 @@ export default function TicketDetailPage() {
       <PageHeader
         title={`HUB ${ticket.hubId}`}
         description={ticket.pageName}
-        crumbs={[
-          { label: 'Tickets', url: '/tickets' },
-          { label: ticket.pageName, url: ticketsPath({ ...EMPTY_FILTERS, pageName: ticket.pageName }) },
-          { label: `HUB ${ticket.hubId}` },
-        ]}
+        crumbs={buildTicketDetailCrumbs(ticket, returnTo)}
         actions={
           <>
             <ModusWcButton
@@ -97,7 +99,7 @@ export default function TicketDetailPage() {
               color="tertiary"
               size="sm"
               disabled={!previous}
-              onButtonClick={() => previous && navigate(`/tickets/${previous.hubId}`)}
+              onButtonClick={() => previous && navigate(ticketDetailPath(previous.hubId, returnTo))}
             >
               Previous on page
             </ModusWcButton>
@@ -106,7 +108,7 @@ export default function TicketDetailPage() {
               color="tertiary"
               size="sm"
               disabled={!next}
-              onButtonClick={() => next && navigate(`/tickets/${next.hubId}`)}
+              onButtonClick={() => next && navigate(ticketDetailPath(next.hubId, returnTo))}
             >
               Next on page
             </ModusWcButton>

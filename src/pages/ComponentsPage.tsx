@@ -30,6 +30,7 @@ import {
   componentExtrasFromSearch,
   componentsPath,
   EMPTY_COMPONENT_EXTRAS,
+  ticketDetailPath,
   filterTickets,
   findModusBranchForGroup,
   filtersFromSearch,
@@ -76,6 +77,10 @@ export default function ComponentsPage() {
   const { tickets } = useTicketStore()
   const filters = useMemo(() => filtersFromSearch(searchParams.toString()), [searchParams])
   const extras = useMemo(() => componentExtrasFromSearch(searchParams.toString()), [searchParams])
+  const componentsReturnTo = useMemo(
+    () => componentsPath(filters, extras),
+    [filters, extras],
+  )
   const [page, setPage] = useState(1)
   const userPicked = useRef(false)
 
@@ -579,7 +584,7 @@ export default function ComponentsPage() {
                   }}
                   onRowClick={(event: CustomEvent<{ row: { hubId?: string } }>) => {
                     const hubId = event.detail?.row?.hubId
-                    if (hubId) navigate(`/tickets/${hubId}`)
+                    if (hubId) navigate(ticketDetailPath(hubId, componentsReturnTo))
                   }}
                 />
               </div>

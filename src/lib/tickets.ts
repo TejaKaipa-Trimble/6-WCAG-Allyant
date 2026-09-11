@@ -80,6 +80,59 @@ export function ticketsPath(filters: TicketFilters): string {
   return query ? `/tickets?${query}` : '/tickets'
 }
 
+export type BreadcrumbItem = { label: string; url?: string }
+
+export function safeReturnTo(value: string | null): string | null {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return null
+  return value
+}
+
+export function ticketDetailPath(hubId: string, returnTo?: string | null): string {
+  const safe = safeReturnTo(returnTo ?? null)
+  if (!safe) return `/tickets/${hubId}`
+  return `/tickets/${hubId}?returnTo=${encodeURIComponent(safe)}`
+}
+
+export function buildTicketDetailCrumbs(
+  ticket: { hubId: string; pageName: string; component?: string },
+  returnTo?: string | null,
+): BreadcrumbItem[] {
+  const safe = safeReturnTo(returnTo ?? null)
+
+  if (safe?.startsWith('/components')) {
+    const selected =
+      new URLSearchParams(safe.includes('?') ? safe.split('?')[1] : '').get('selected') ??
+      ticket.component
+    const crumbs: BreadcrumbItem[] = [{ label: 'Components', url: safe }]
+    const itemLabel = selected?.trim() || ticket.component?.trim()
+    if (itemLabel) crumbs.push({ label: itemLabel })
+    crumbs.push({ label: `HUB ${ticket.hubId}` })
+    return crumbs
+  }
+
+  if (safe?.startsWith('/pages')) {
+    return [
+      { label: 'Pages', url: safe },
+      { label: ticket.pageName },
+      { label: `HUB ${ticket.hubId}` },
+    ]
+  }
+
+  if (safe?.startsWith('/tickets')) {
+    return [
+      { label: 'Tickets', url: safe },
+      { label: ticket.pageName, url: ticketsPath({ ...EMPTY_FILTERS, pageName: ticket.pageName }) },
+      { label: `HUB ${ticket.hubId}` },
+    ]
+  }
+
+  return [
+    { label: 'Tickets', url: '/tickets' },
+    { label: ticket.pageName, url: ticketsPath({ ...EMPTY_FILTERS, pageName: ticket.pageName }) },
+    { label: `HUB ${ticket.hubId}` },
+  ]
+}
+
 export function filtersFromSearch(search: string): TicketFilters {
   const params = new URLSearchParams(search)
   return {
