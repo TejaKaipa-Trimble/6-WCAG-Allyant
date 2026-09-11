@@ -1,0 +1,9 @@
+# PP — Push and preview on Vercel
+
+When the user sends **PP** (or asks to "PP"), execute this workflow:
+
+1. **Commit** any uncommitted work with a concise message (if changes exist).
+2. **Push** the current branch to `origin`.
+3. **Update the Vercel preview** — ensure the GitHub repo is linked (`create_git_project` if needed) so the push triggers a preview deployment; confirm the preview URL when available.
+
+Do not ask for confirmation unless blocked (auth, no remote, or push failure).
