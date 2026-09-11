@@ -3,13 +3,16 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ModusWcAccordion,
   ModusWcAlert,
+  ModusWcBadge,
   ModusWcButton,
   ModusWcCard,
   ModusWcChip,
   ModusWcCollapse,
+  ModusWcDivider,
   ModusWcIcon,
   ModusWcMenu,
   ModusWcMenuItem,
+  ModusWcProgress,
   ModusWcSelect,
   ModusWcTable,
   ModusWcTextInput,
@@ -21,6 +24,7 @@ import type {
   ISelectOption,
   ITableColumn,
 } from '@trimble-oss/moduswebcomponents'
+import ComponentStatTile from '../components/ComponentStatTile'
 import PageHeader from '../components/PageHeader'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
@@ -294,8 +298,30 @@ export default function ComponentsPage() {
     [tickets],
   )
 
+  const summaryStats = useMemo(() => {
+    let remaining = 0
+    let total = 0
+    let critical = 0
+    let highRisk = 0
+    for (const group of groups) {
+      remaining += group.remaining
+      total += group.total
+      critical += group.critical
+      highRisk += group.highRisk
+    }
+    const resolved = total - remaining
+    const resolvedPct = total > 0 ? Math.round((resolved / total) * 100) : 0
+    return { remaining, total, critical, highRisk, resolved, resolvedPct }
+  }, [groups])
+
+  const selectedProgress = useMemo(() => {
+    if (!selectedGroup || selectedGroup.total === 0) return 0
+    const done = selectedGroup.total - selectedGroup.remaining
+    return Math.round((done / selectedGroup.total) * 100)
+  }, [selectedGroup])
+
   return (
-    <div className="app-page app-page-fill">
+    <div className="app-page app-page-fill components-page">
       <PageHeader
         title="Components"
         description="Allyant items nested under Modus component names. Expand a parent to find matching audit items; unmatched names are under Other."
@@ -316,12 +342,38 @@ export default function ComponentsPage() {
         }
       />
 
+      <section className="components-summary-grid" aria-label="Component overview">
+        <ComponentStatTile
+          label="Allyant items"
+          value={`${listCount} of ${totalComponents}`}
+          icon="component"
+          tone="primary"
+        />
+        <ComponentStatTile
+          label="Remaining tickets"
+          value={String(summaryStats.remaining)}
+          icon="hourglass"
+          tone={summaryStats.remaining > 0 ? 'warning' : 'success'}
+        />
+        <ComponentStatTile
+          label="Critical remaining"
+          value={String(summaryStats.critical)}
+          icon="alert"
+          tone={summaryStats.critical > 0 ? 'danger' : 'default'}
+        />
+        <ComponentStatTile
+          label="Modus groups"
+          value={String(visibleBranchSlugs.size)}
+          icon="folder_closed"
+        />
+      </section>
+
       <ModusWcCard bordered={false} padding="compact">
         <div slot="title" className="flex w-full min-w-0 items-center justify-start gap-2 mb-4">
           <ModusWcIcon name="filter" decorative />
-          <ModusWcTypography hierarchy="h2" size="md" weight="semibold" label="Filters" />
+          <ModusWcTypography hierarchy="h2" size="md" weight="semibold" label="Refine results" />
         </div>
-        <div className="app-card-body">
+        <div className="components-filter-body">
           <div className="app-filter-grid">
             <ModusWcTextInput
               label="Search"
@@ -370,7 +422,16 @@ export default function ComponentsPage() {
               }}
             />
           </div>
-          <div className="app-chip-row" role="group" aria-label="Quick filters">
+          <ModusWcDivider />
+          <div className="components-chip-section">
+            <ModusWcTypography
+              hierarchy="p"
+              size="xs"
+              weight="semibold"
+              customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0"
+              label="Quick filters"
+            />
+            <div className="app-chip-row" role="group" aria-label="Quick filters">
             <ModusWcChip
               label="High risk"
               size="sm"
@@ -409,22 +470,26 @@ export default function ComponentsPage() {
                 extras.remainingOnly ? 'Remaining work filter, active' : 'Remaining work filter'
               }
             />
+            </div>
           </div>
         </div>
       </ModusWcCard>
 
       <div className="app-component-split">
         <div className="app-component-list-col">
-          <ModusWcCard bordered={false} padding="compact">
-            <div slot="title" className="flex w-full min-w-0 items-center justify-start gap-2 mb-4">
-              <ModusWcIcon name="component" decorative />
-              <ModusWcTypography
-                hierarchy="h2"
-                size="md"
-                weight="semibold"
-                label={`${listCount} of ${totalComponents} items · ${visibleBranchSlugs.size} Modus groups`}
-              />
+          <ModusWcCard bordered={false} padding="compact" customClass="components-list-card">
+            <div slot="title" className="flex w-full min-w-0 items-center justify-between gap-3 mb-4">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <ModusWcIcon name="component" decorative />
+                <ModusWcTypography hierarchy="h2" size="md" weight="semibold" label="Browse by Modus" />
+              </div>
+              <div className="shrink-0">
+                <ModusWcBadge variant="filled" color="high-contrast" size="sm">
+                  {listCount}
+                </ModusWcBadge>
+              </div>
             </div>
+            <div className="components-list-shell">
             <div
               className={listCount > 0 ? 'app-is-hidden' : undefined}
               aria-hidden={listCount > 0}
@@ -432,13 +497,15 @@ export default function ComponentsPage() {
                 if (el) el.inert = listCount > 0
               }}
             >
-              <ModusWcTypography
-                hierarchy="p"
-                size="sm"
-                hidden={listCount > 0}
-                customClass="text-[var(--modus-wc-color-base-content-low-contrast)]"
-                label="No components match these filters."
-              />
+              <div className="components-empty-hint">
+                <ModusWcTypography
+                  hierarchy="p"
+                  size="sm"
+                  hidden={listCount > 0}
+                  customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0"
+                  label="No components match these filters. Try clearing a filter or broadening your search."
+                />
+              </div>
             </div>
             <ModusWcAccordion hidden={listCount === 0} aria-label="Modus component groups">
               {catalogBranches.map((branch) => {
@@ -491,27 +558,23 @@ export default function ComponentsPage() {
                 )
               })}
             </ModusWcAccordion>
+            </div>
           </ModusWcCard>
         </div>
 
         <div id="component-detail" className="app-component-detail-col" tabIndex={-1}>
           <div className={!selectedGroup ? 'app-is-hidden' : undefined} aria-hidden={!selectedGroup}>
-            <ModusWcCard bordered={false} padding="compact">
+            <ModusWcCard bordered={false} padding="compact" customClass="components-detail-card">
               <div slot="title" className="flex w-full min-w-0 items-center justify-between gap-3 mb-4">
                 <div className="flex min-w-0 flex-1 items-center gap-2">
                   <ModusWcIcon name="component" decorative />
-                  <ModusWcTypography
-                    hierarchy="h2"
-                    size="md"
-                    weight="semibold"
-                    label={selectedGroup?.label ?? 'Component'}
-                  />
+                  <ModusWcTypography hierarchy="h2" size="md" weight="semibold" label="Item detail" />
                 </div>
                 <div className="shrink-0">
                   <ModusWcButton
                     variant="filled"
                     color="primary"
-                    size="xs"
+                    size="sm"
                     onButtonClick={() => {
                       if (!selectedGroup) return
                       navigate(
@@ -535,31 +598,114 @@ export default function ComponentsPage() {
                 </div>
               </div>
               <div className="app-card-body">
-                <div className="app-meta-grid">
-                  <Meta
-                    label="Remaining"
-                    value={`${selectedGroup?.remaining ?? 0} of ${selectedGroup?.total ?? 0}`}
+                <div className="components-detail-hero">
+                  <div className="components-detail-hero__progress">
+                    <ModusWcProgress
+                      variant="radial"
+                      value={selectedProgress}
+                      max={100}
+                      aria-label={`${selectedProgress}% of tickets resolved for this item`}
+                    >
+                      <ModusWcTypography
+                        hierarchy="p"
+                        size="sm"
+                        weight="bold"
+                        customClass="!m-0 tabular-nums"
+                        label={`${selectedProgress}%`}
+                      />
+                    </ModusWcProgress>
+                  </div>
+                  <div className="components-detail-hero__copy">
+                    <ModusWcTypography
+                      hierarchy="h3"
+                      size="xl"
+                      weight="semibold"
+                      customClass="!m-0"
+                      label={selectedGroup?.label ?? 'Component'}
+                    />
+                    <ModusWcTypography
+                      hierarchy="p"
+                      size="sm"
+                      customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0"
+                      label={`${selectedGroup?.remaining ?? 0} tickets remaining of ${selectedGroup?.total ?? 0} total`}
+                    />
+                    <ModusWcProgress
+                      value={selectedGroup ? selectedGroup.total - selectedGroup.remaining : 0}
+                      max={selectedGroup?.total ?? 100}
+                      aria-label="Resolution progress"
+                      customClass="components-detail-hero__bar"
+                    />
+                  </div>
+                </div>
+
+                <ModusWcDivider />
+
+                <div className="components-detail-stats">
+                  <ComponentStatTile
+                    label="Open"
+                    value={String(selectedGroup?.open ?? 0)}
+                    icon="folder_open"
                   />
-                  <Meta label="Open" value={String(selectedGroup?.open ?? 0)} />
-                  <Meta label="In progress" value={String(selectedGroup?.inProgress ?? 0)} />
-                  <Meta label="Resolved" value={String(selectedGroup?.resolved ?? 0)} />
-                  <Meta label="Critical remaining" value={String(selectedGroup?.critical ?? 0)} />
-                  <Meta label="High risk remaining" value={String(selectedGroup?.highRisk ?? 0)} />
-                  <Meta
+                  <ComponentStatTile
+                    label="In progress"
+                    value={String(selectedGroup?.inProgress ?? 0)}
+                    icon="hourglass"
+                    tone="primary"
+                  />
+                  <ComponentStatTile
+                    label="Resolved"
+                    value={String(selectedGroup?.resolved ?? 0)}
+                    icon="check_circle"
+                    tone="success"
+                  />
+                  <ComponentStatTile
+                    label="Critical"
+                    value={String(selectedGroup?.critical ?? 0)}
+                    icon="alert"
+                    tone={selectedGroup && selectedGroup.critical > 0 ? 'danger' : 'default'}
+                  />
+                  <ComponentStatTile
+                    label="High risk"
+                    value={String(selectedGroup?.highRisk ?? 0)}
+                    icon="warning"
+                    tone={selectedGroup && selectedGroup.highRisk > 0 ? 'warning' : 'default'}
+                  />
+                  <ComponentStatTile
                     label="Pages"
-                    value={
-                      selectedGroup
-                        ? `${selectedGroup.pages.length}: ${selectedGroup.pages.slice(0, 8).join(', ')}${
-                            selectedGroup.pages.length > 8 ? '…' : ''
-                          }`
-                        : '—'
-                    }
-                  />
-                  <Meta
-                    label="Categories"
-                    value={selectedGroup?.categories.join(', ') || '—'}
+                    value={String(selectedGroup?.pages.length ?? 0)}
+                    icon="folder_closed"
                   />
                 </div>
+
+                {selectedGroup && selectedGroup.categories.length > 0 ? (
+                  <>
+                    <ModusWcDivider />
+                    <div className="components-category-row">
+                      <ModusWcTypography
+                        hierarchy="p"
+                        size="xs"
+                        weight="semibold"
+                        customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0 shrink-0"
+                        label="Categories"
+                      />
+                      {selectedGroup.categories.map((category) => (
+                        <ModusWcChip key={category} label={category} size="sm" variant="outline" />
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+
+                {selectedGroup && selectedGroup.pages.length > 0 ? (
+                  <>
+                    <ModusWcDivider />
+                    <Meta
+                      label="Affected pages"
+                      value={`${selectedGroup.pages.slice(0, 10).join(', ')}${
+                        selectedGroup.pages.length > 10 ? ` (+${selectedGroup.pages.length - 10} more)` : ''
+                      }`}
+                    />
+                  </>
+                ) : null}
               </div>
             </ModusWcCard>
           </div>
@@ -601,8 +747,8 @@ export default function ComponentsPage() {
           <ModusWcAlert
             hidden={Boolean(selectedGroup)}
             variant="info"
-            alertTitle="Select a component"
-            alertDescription="Choose a component from the list to see remaining work, pages, and tickets."
+            alertTitle="Select an Allyant item"
+            alertDescription="Expand a Modus group on the left, then choose an item to review progress, affected pages, and related tickets."
           />
         </div>
       </div>
