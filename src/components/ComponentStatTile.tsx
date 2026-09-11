@@ -36,7 +36,7 @@ export default function ComponentStatTile({
         />
         <ModusWcTypography
           hierarchy="p"
-          size="lg"
+          size="md"
           weight="bold"
           customClass="!m-0 tabular-nums"
           label={value}

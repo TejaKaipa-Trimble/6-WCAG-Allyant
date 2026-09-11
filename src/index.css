@@ -258,6 +258,22 @@ modus-wc-side-navigation modus-wc-menu-item {
   min-width: 0;
 }
 
+.app-page-header--compact {
+  gap: 0.125rem;
+}
+
+.app-page-header--compact .app-page-header-row {
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.app-page-header--compact modus-wc-typography,
+.app-page-header--compact modus-wc-breadcrumbs,
+.app-page-header--compact modus-wc-typography h1,
+.app-page-header--compact modus-wc-typography p {
+  margin: 0 !important;
+}
+
 .app-page-header-row {
   display: flex;
   flex-wrap: wrap;
@@ -338,13 +354,41 @@ modus-wc-side-navigation modus-wc-menu-item {
 /* —— Components page —— */
 
 .components-page {
-  gap: 1rem;
+  gap: 0.5rem;
+  padding-block: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .components-page {
+    padding-block: 0.75rem 1rem;
+  }
+}
+
+.components-chrome {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+@media (min-width: 1280px) {
+  .components-chrome {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    align-items: center;
+    gap: 0.5rem 1rem;
+  }
+
+  .components-chrome .app-page-header-row {
+    flex-wrap: nowrap;
+  }
 }
 
 .components-summary-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 @media (min-width: 768px) {
@@ -355,15 +399,14 @@ modus-wc-side-navigation modus-wc-menu-item {
 
 .components-summary-grid > div {
   min-width: 0;
-  height: 100%;
 }
 
 .components-stat-tile {
   display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
+  align-items: center;
+  gap: 0.5rem;
   min-width: 0;
-  padding: 0.875rem 1rem;
+  padding: 0.375rem 0.625rem;
   border-radius: var(--modus-wc-border-radius-md, 0.5rem);
   background-color: var(--modus-wc-color-base-100);
 }
@@ -373,8 +416,8 @@ modus-wc-side-navigation modus-wc-menu-item {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 1.75rem;
+  height: 1.75rem;
   border-radius: var(--modus-wc-border-radius-md, 0.5rem);
   background-color: var(--modus-wc-color-base-200);
   color: var(--modus-wc-color-base-content);
@@ -403,7 +446,8 @@ modus-wc-side-navigation modus-wc-menu-item {
 .components-stat-tile__copy {
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
+  gap: 0;
+  min-width: 0;
 }
 
 .components-section-label {
@@ -507,8 +551,41 @@ modus-wc-side-navigation modus-wc-menu-item {
 .components-list-shell {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.125rem;
   min-height: 0;
+}
+
+.components-list-panel {
+  margin: -0.375rem -0.5rem;
+}
+
+.components-list-panel modus-wc-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.components-list-panel modus-wc-collapse {
+  display: block;
+}
+
+.components-collapse-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  margin: calc(-1 * var(--modus-wc-spacing-sm, 0.5rem))
+    calc(-1 * var(--modus-wc-spacing-md, 1rem));
+  padding: 0.125rem var(--modus-wc-spacing-sm, 0.5rem);
+}
+
+.components-list-panel .app-component-tree-children {
+  padding-inline-start: 0.25rem;
+  margin-top: -0.125rem;
+}
+
+.components-list-panel modus-wc-menu-item {
+  margin-block: 0;
 }
 
 .components-empty-hint {

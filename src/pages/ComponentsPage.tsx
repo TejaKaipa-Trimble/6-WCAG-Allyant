@@ -19,7 +19,6 @@ import {
   ModusWcTypography,
 } from '@trimble-oss/moduswebcomponents-react'
 import type {
-  ICollapseOptions,
   IPaginationChangeEventDetail,
   ISelectOption,
   ITableColumn,
@@ -123,27 +122,6 @@ export default function ComponentsPage() {
   )
 
   const [openSlugs, setOpenSlugs] = useState<string[]>([])
-
-  const collapseOptions = useMemo(() => {
-    const map = new Map<string, ICollapseOptions>()
-    for (const branch of catalogBranches) {
-      const shown = branch.children.filter((child) => visibleGroups.has(child.key))
-      const remaining = shown.reduce(
-        (sum, child) => sum + (visibleGroups.get(child.key)?.remaining ?? child.remaining),
-        0,
-      )
-      const total = shown.reduce(
-        (sum, child) => sum + (visibleGroups.get(child.key)?.total ?? child.total),
-        0,
-      )
-      map.set(branch.slug, {
-        title: `${branch.title} · ${remaining} remaining`,
-        description: `${shown.length} Allyant items · ${total} tickets`,
-        size: 'sm',
-      })
-    }
-    return map
-  }, [catalogBranches, visibleGroups])
 
   const selectedGroup: ComponentGroup | undefined = useMemo(() => {
     if (groups.length === 0) return undefined
@@ -322,10 +300,10 @@ export default function ComponentsPage() {
 
   return (
     <div className="app-page app-page-fill components-page">
+      <div className="components-chrome">
       <PageHeader
+        compact
         title="Components"
-        description="Allyant items nested under Modus component names. Expand a parent to find matching audit items; unmatched names are under Other."
-        crumbs={[{ label: 'Dashboard', url: '/' }, { label: 'Components' }]}
         actions={
           hasFilters ? (
             <ModusWcButton
@@ -367,6 +345,7 @@ export default function ComponentsPage() {
           icon="folder_closed"
         />
       </section>
+      </div>
 
       <ModusWcCard bordered={false} padding="compact" customClass="components-filter-card" aria-label="Filters">
         <div className="components-filter-body">
@@ -464,10 +443,10 @@ export default function ComponentsPage() {
       <div className="app-component-split">
         <div className="app-component-list-col">
           <ModusWcCard bordered={false} padding="compact" customClass="components-list-card">
-            <div slot="title" className="flex w-full min-w-0 items-center justify-between gap-3 mb-4">
+            <div slot="title" className="flex w-full min-w-0 items-center justify-between gap-2 mb-1">
               <div className="flex min-w-0 flex-1 items-center gap-2">
-                <ModusWcIcon name="component" decorative />
-                <ModusWcTypography hierarchy="h2" size="md" weight="semibold" label="Browse by Modus" />
+                <ModusWcIcon name="component" size="sm" decorative />
+                <ModusWcTypography hierarchy="h2" size="sm" weight="semibold" label="Browse by Modus" />
               </div>
               <div className="shrink-0">
                 <ModusWcBadge variant="filled" color="high-contrast" size="sm">
@@ -475,7 +454,7 @@ export default function ComponentsPage() {
                 </ModusWcBadge>
               </div>
             </div>
-            <div className="components-list-shell">
+            <div className="components-list-shell components-list-panel">
             <div
               className={listCount > 0 ? 'app-is-hidden' : undefined}
               aria-hidden={listCount > 0}
@@ -496,13 +475,22 @@ export default function ComponentsPage() {
             <ModusWcAccordion hidden={listCount === 0} aria-label="Modus component groups">
               {catalogBranches.map((branch) => {
                 const parentVisible = visibleBranchSlugs.has(branch.slug)
+                const shown = branch.children.filter((child) => visibleGroups.has(child.key))
+                const remaining = shown.reduce(
+                  (sum, child) => sum + (visibleGroups.get(child.key)?.remaining ?? child.remaining),
+                  0,
+                )
+                const total = shown.reduce(
+                  (sum, child) => sum + (visibleGroups.get(child.key)?.total ?? child.total),
+                  0,
+                )
                 return (
                   <ModusWcCollapse
                     key={branch.slug}
                     hidden={!parentVisible}
+                    customClass="components-collapse-item"
                     collapseId={`modus-${branch.slug}`}
                     expanded={openSlugs.includes(branch.slug)}
-                    options={collapseOptions.get(branch.slug)}
                     onExpandedChange={(event: CustomEvent<{ expanded: boolean }>) => {
                       const nextOpen = event.detail.expanded
                       setOpenSlugs((prev) => {
@@ -513,6 +501,21 @@ export default function ComponentsPage() {
                       })
                     }}
                   >
+                    <div slot="header" className="components-collapse-header">
+                      <ModusWcTypography
+                        hierarchy="p"
+                        size="sm"
+                        weight="semibold"
+                        customClass="block w-full !m-0"
+                        label={`${branch.title} · ${remaining} remaining`}
+                      />
+                      <ModusWcTypography
+                        hierarchy="p"
+                        size="xs"
+                        customClass="block w-full !m-0 text-[var(--modus-wc-color-base-content-low-contrast)]"
+                        label={`${shown.length} Allyant items · ${total} tickets`}
+                      />
+                    </div>
                     <div slot="content" className="app-component-tree-children">
                       <ModusWcMenu
                         size="sm"
@@ -534,7 +537,7 @@ export default function ComponentsPage() {
                               tooltipContent={group.label}
                               onItemSelect={() => selectGroup(group.key)}
                             >
-                              <ModusWcIcon slot="start-icon" name="component" size="sm" decorative />
+                              <ModusWcIcon slot="start-icon" name="component" size="xs" decorative />
                             </ModusWcMenuItem>
                           )
                         })}
@@ -549,6 +552,40 @@ export default function ComponentsPage() {
         </div>
 
         <div id="component-detail" className="app-component-detail-col" tabIndex={-1}>
+          <div className={!selectedGroup ? 'app-is-hidden' : undefined} aria-hidden={!selectedGroup}>
+            <ModusWcCard bordered={false} padding="compact">
+              <div slot="title" className="flex w-full min-w-0 items-center justify-start gap-2 mb-4">
+                <ModusWcIcon name="table" decorative />
+                <ModusWcTypography
+                  hierarchy="h2"
+                  size="md"
+                  weight="semibold"
+                  label={`Tickets (${selectedGroup?.total ?? 0})`}
+                />
+              </div>
+              <div className="app-table-wrap">
+                <ModusWcTable
+                  caption={`Tickets for ${selectedGroup?.label ?? 'component'}`}
+                  columns={columns}
+                  data={tableData}
+                  zebra
+                  hover
+                  sortable
+                  paginated
+                  currentPage={page}
+                  pageSizeOptions={[25, 50, 100]}
+                  onPaginationChange={(event: CustomEvent<IPaginationChangeEventDetail>) => {
+                    setPage(event.detail.currentPage)
+                  }}
+                  onRowClick={(event: CustomEvent<{ row: { hubId?: string } }>) => {
+                    const hubId = event.detail?.row?.hubId
+                    if (hubId) navigate(`/tickets/${hubId}`)
+                  }}
+                />
+              </div>
+            </ModusWcCard>
+          </div>
+
           <div className={!selectedGroup ? 'app-is-hidden' : undefined} aria-hidden={!selectedGroup}>
             <ModusWcCard bordered={false} padding="compact" customClass="components-detail-card">
               <div slot="title" className="flex w-full min-w-0 items-center justify-between gap-3 mb-4">
@@ -692,40 +729,6 @@ export default function ComponentsPage() {
                     />
                   </>
                 ) : null}
-              </div>
-            </ModusWcCard>
-          </div>
-
-          <div className={!selectedGroup ? 'app-is-hidden' : undefined} aria-hidden={!selectedGroup}>
-            <ModusWcCard bordered={false} padding="compact">
-              <div slot="title" className="flex w-full min-w-0 items-center justify-start gap-2 mb-4">
-                <ModusWcIcon name="table" decorative />
-                <ModusWcTypography
-                  hierarchy="h2"
-                  size="md"
-                  weight="semibold"
-                  label={`Tickets (${selectedGroup?.total ?? 0})`}
-                />
-              </div>
-              <div className="app-table-wrap">
-                <ModusWcTable
-                  caption={`Tickets for ${selectedGroup?.label ?? 'component'}`}
-                  columns={columns}
-                  data={tableData}
-                  zebra
-                  hover
-                  sortable
-                  paginated
-                  currentPage={page}
-                  pageSizeOptions={[25, 50, 100]}
-                  onPaginationChange={(event: CustomEvent<IPaginationChangeEventDetail>) => {
-                    setPage(event.detail.currentPage)
-                  }}
-                  onRowClick={(event: CustomEvent<{ row: { hubId?: string } }>) => {
-                    const hubId = event.detail?.row?.hubId
-                    if (hubId) navigate(`/tickets/${hubId}`)
-                  }}
-                />
               </div>
             </ModusWcCard>
           </div>

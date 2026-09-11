@@ -11,13 +11,20 @@ type PageHeaderProps = {
   description?: string
   crumbs?: Crumb[]
   actions?: React.ReactNode
+  compact?: boolean
 }
 
-export default function PageHeader({ title, description, crumbs, actions }: PageHeaderProps) {
+export default function PageHeader({
+  title,
+  description,
+  crumbs,
+  actions,
+  compact = false,
+}: PageHeaderProps) {
   const navigate = useNavigate()
 
   return (
-    <header className="app-page-header">
+    <header className={compact ? 'app-page-header app-page-header--compact' : 'app-page-header'}>
       {crumbs ? (
         <ModusWcBreadcrumbs
           aria-label="Page path"
@@ -30,17 +37,23 @@ export default function PageHeader({ title, description, crumbs, actions }: Page
       ) : null}
       <div className="app-page-header-row">
         <div className="min-w-0">
-          <ModusWcTypography hierarchy="h1" size="2xl" weight="bold" label={title} />
+          <ModusWcTypography
+            hierarchy="h1"
+            size={compact ? 'xl' : '2xl'}
+            weight="bold"
+            customClass="!m-0"
+            label={title}
+          />
           {description ? (
             <ModusWcTypography
               hierarchy="p"
-              size="sm"
-              customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !mt-1"
+              size={compact ? 'xs' : 'sm'}
+              customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0"
               label={description}
             />
           ) : null}
         </div>
-        {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+        {actions ? <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div> : null}
       </div>
     </header>
   )
