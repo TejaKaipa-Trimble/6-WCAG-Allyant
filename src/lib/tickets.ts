@@ -1,6 +1,9 @@
 import issuesJson from '../data/issues.json'
 import {
+  isModusParentId,
   matchModusCatalog,
+  MODUS_CATALOG,
+  MODUS_PARENT_PREFIX,
   modusParentId,
   OTHER_MODUS_SLUG,
   OTHER_MODUS_TITLE,
@@ -36,8 +39,13 @@ export function filterTickets(tickets: Ticket[], filters: TicketFilters): Ticket
     if (filters.pageName && ticket.pageName !== filters.pageName) return false
     if (filters.component === '__none__') {
       if (ticket.component) return false
-    } else if (filters.component && ticket.component !== filters.component) {
-      return false
+    } else if (filters.component) {
+      if (isModusParentId(filters.component)) {
+        const slug = filters.component.slice(MODUS_PARENT_PREFIX.length)
+        if (matchModusCatalog(ticket.component).slug !== slug) return false
+      } else if (ticket.component !== filters.component) {
+        return false
+      }
     }
     if (filters.priority && ticket.priority !== filters.priority) return false
     if (filters.category && ticket.category !== filters.category) return false
@@ -116,7 +124,9 @@ export function buildTicketDetailCrumbs(
 
   if (safe?.startsWith('/components')) {
     const { pathname, params } = splitPathQuery(safe)
-    const selectedKey = params.get('selected')?.trim() || componentKey(ticket.component ?? '')
+    const selectedKey =
+      params.get('selected')?.trim() ||
+      modusParentId(matchModusCatalog(ticket.component ?? '').slug)
     const itemLabel = componentLabel(selectedKey)
 
     const listParams = new URLSearchParams(params)
@@ -210,7 +220,13 @@ export function componentKey(name: string): string {
 }
 
 export function componentLabel(key: string): string {
-  return key === UNSPECIFIED_COMPONENT ? 'Unspecified' : key
+  if (key === UNSPECIFIED_COMPONENT) return 'Unspecified'
+  if (isModusParentId(key)) {
+    const slug = key.slice(MODUS_PARENT_PREFIX.length)
+    if (slug === OTHER_MODUS_SLUG) return OTHER_MODUS_TITLE
+    return MODUS_CATALOG.find((entry) => entry.slug === slug)?.title ?? slug
+  }
+  return key
 }
 
 export function isRemainingTicket(ticket: Ticket): boolean {
@@ -259,8 +275,9 @@ export function commonIssueKey(ticket: Ticket): string {
 }
 
 export function groupTicketsByCommonIssue(tickets: Ticket[]): CommonIssueGroup[] {
+  const uniqueTickets = [...new Map(tickets.map((ticket) => [ticket.hubId, ticket])).values()]
   const buckets = new Map<string, Ticket[]>()
-  for (const ticket of tickets) {
+  for (const ticket of uniqueTickets) {
     const key = commonIssueKey(ticket)
     const list = buckets.get(key)
     if (list) list.push(ticket)
@@ -278,7 +295,7 @@ export function groupTicketsByCommonIssue(tickets: Ticket[]): CommonIssueGroup[]
       key,
       commonIssueId: primary.commonIssueId.trim(),
       tickets: sorted,
-      hubIds: sorted.map((ticket) => ticket.hubId),
+      hubIds: [...new Set(sorted.map((ticket) => ticket.hubId))],
       description: primary.description,
       wcag: primary.wcag,
       priority: primary.priority,
@@ -301,6 +318,25 @@ export function groupTicketsByCommonIssue(tickets: Ticket[]): CommonIssueGroup[]
   })
 }
 
+function componentGroupFromTickets(key: string, label: string, tickets: Ticket[]): ComponentGroup {
+  const uniqueTickets = [...new Map(tickets.map((ticket) => [ticket.hubId, ticket])).values()]
+  const remainingTickets = uniqueTickets.filter(isRemainingTicket)
+  return {
+    key,
+    label,
+    tickets: uniqueTickets,
+    total: uniqueTickets.length,
+    remaining: remainingTickets.length,
+    open: uniqueTickets.filter((ticket) => ticket.status === 'open').length,
+    inProgress: uniqueTickets.filter((ticket) => ticket.status === 'in_progress').length,
+    resolved: uniqueTickets.filter((ticket) => ticket.status === 'resolved').length,
+    critical: remainingTickets.filter((ticket) => ticket.priority === 'Critical').length,
+    highRisk: remainingTickets.filter((ticket) => ticket.highRisk).length,
+    pages: uniqueSorted(uniqueTickets.map((ticket) => ticket.pageName)),
+    categories: uniqueSorted(uniqueTickets.map((ticket) => ticket.category)),
+  }
+}
+
 export function groupTicketsByComponent(tickets: Ticket[]): ComponentGroup[] {
   const buckets = new Map<string, Ticket[]>()
   for (const ticket of tickets) {
@@ -310,23 +346,9 @@ export function groupTicketsByComponent(tickets: Ticket[]): ComponentGroup[] {
     else buckets.set(key, [ticket])
   }
 
-  return [...buckets.entries()].map(([key, list]) => {
-    const remainingTickets = list.filter(isRemainingTicket)
-    return {
-      key,
-      label: componentLabel(key),
-      tickets: list,
-      total: list.length,
-      remaining: remainingTickets.length,
-      open: list.filter((ticket) => ticket.status === 'open').length,
-      inProgress: list.filter((ticket) => ticket.status === 'in_progress').length,
-      resolved: list.filter((ticket) => ticket.status === 'resolved').length,
-      critical: remainingTickets.filter((ticket) => ticket.priority === 'Critical').length,
-      highRisk: remainingTickets.filter((ticket) => ticket.highRisk).length,
-      pages: uniqueSorted(list.map((ticket) => ticket.pageName)),
-      categories: uniqueSorted(list.map((ticket) => ticket.category)),
-    }
-  })
+  return [...buckets.entries()].map(([key, list]) =>
+    componentGroupFromTickets(key, componentLabel(key), list),
+  )
 }
 
 export function sortComponentGroups(
@@ -401,7 +423,35 @@ export function findModusBranchForGroup(
   branches: ModusComponentBranch[],
   groupKey: string,
 ): ModusComponentBranch | undefined {
+  if (isModusParentId(groupKey)) {
+    return branches.find((branch) => branch.id === groupKey)
+  }
   return branches.find((branch) => branch.children.some((child) => child.key === groupKey))
+}
+
+/** Merge all Allyant children under a Modus parent into one selectable group. */
+export function aggregateModusBranch(branch: ModusComponentBranch): ComponentGroup {
+  return componentGroupFromTickets(
+    branch.id,
+    branch.title,
+    branch.children.flatMap((child) => child.tickets),
+  )
+}
+
+export function aggregateModusBranches(branches: ModusComponentBranch[]): ComponentGroup[] {
+  return branches.map(aggregateModusBranch)
+}
+
+/** Resolve a URL `selected` value (legacy Allyant label or `modus:slug`) to a Modus parent id. */
+export function resolveModusSelection(
+  branches: ModusComponentBranch[],
+  selected: string,
+): string {
+  if (!selected) return branches[0]?.id ?? ''
+  const direct = branches.find((branch) => branch.id === selected)
+  if (direct) return direct.id
+  const parent = findModusBranchForGroup(branches, selected)
+  return parent?.id ?? branches[0]?.id ?? ''
 }
 
 export function componentsPath(filters: TicketFilters, extras: ComponentPageExtras): string {

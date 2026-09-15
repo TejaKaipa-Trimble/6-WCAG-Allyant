@@ -29,25 +29,16 @@ export default function IssueCard({ group, onHubSelect, onViewIssue }: IssueCard
       <div className="issue-card-row">
         <div className="issue-card-main">
           <div className="issue-card-badges">
-            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-              <ModusWcBadge variant="filled" color={priorityBadgeColor(group.priority)} size="sm">
-                {group.priority || '—'}
+            <ModusWcBadge variant="filled" color={priorityBadgeColor(group.priority)} size="sm">
+              {group.priority || '—'}
+            </ModusWcBadge>
+            <ModusWcBadge variant="filled" color={statusBadgeColor(group.status)} size="sm">
+              {LOCAL_STATUS_LABEL[group.status]}
+            </ModusWcBadge>
+            {group.highRisk ? (
+              <ModusWcBadge variant="filled" color="danger" size="sm">
+                High risk
               </ModusWcBadge>
-              <ModusWcBadge variant="filled" color={statusBadgeColor(group.status)} size="sm">
-                {LOCAL_STATUS_LABEL[group.status]}
-              </ModusWcBadge>
-              {group.highRisk ? (
-                <ModusWcBadge variant="filled" color="danger" size="sm">
-                  High risk
-                </ModusWcBadge>
-              ) : null}
-            </div>
-            {group.hubIds.length > 1 ? (
-              <div className="shrink-0">
-                <ModusWcBadge variant="filled" color="high-contrast" size="sm">
-                  {group.hubIds.length} HUBs
-                </ModusWcBadge>
-              </div>
             ) : null}
           </div>
 
@@ -89,13 +80,20 @@ export default function IssueCard({ group, onHubSelect, onViewIssue }: IssueCard
             role="group"
             aria-label={`HUB IDs for ${group.description || 'issue'}`}
           >
-            <ModusWcTypography
-              hierarchy="p"
-              size="xs"
-              weight="semibold"
-              customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0 shrink-0"
-              label="HUB IDs"
-            />
+            <div className="issue-card-hubs-header">
+              <ModusWcTypography
+                hierarchy="p"
+                size="xs"
+                weight="semibold"
+                customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0 shrink-0"
+                label="HUB IDs"
+              />
+              {group.hubIds.length > 1 ? (
+                <ModusWcBadge variant="filled" color="high-contrast" size="sm">
+                  {group.hubIds.length} HUBs
+                </ModusWcBadge>
+              ) : null}
+            </div>
             <div className="app-chip-row">
               {group.hubIds.map((hubId) => (
                 <ModusWcChip

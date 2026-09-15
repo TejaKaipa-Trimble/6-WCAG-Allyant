@@ -1,13 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  ModusWcAccordion,
   ModusWcAlert,
   ModusWcBadge,
   ModusWcButton,
   ModusWcCard,
   ModusWcChip,
-  ModusWcCollapse,
   ModusWcDivider,
   ModusWcIcon,
   ModusWcMenu,
@@ -23,16 +21,17 @@ import IssueCardsGrid from '../components/IssueCardsGrid'
 import PageHeader from '../components/PageHeader'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
+  aggregateModusBranches,
   componentExtrasFromSearch,
   componentsPath,
   EMPTY_COMPONENT_EXTRAS,
   ticketDetailPath,
   filterTickets,
-  findModusBranchForGroup,
   filtersFromSearch,
   groupComponentGroupsByModus,
   groupTicketsByCommonIssue,
   groupTicketsByComponent,
+  resolveModusSelection,
   sortComponentGroups,
   ticketsPath,
   uniqueSorted,
@@ -82,7 +81,7 @@ export default function ComponentsPage() {
     [catalog, extras.sort],
   )
 
-  const groups = useMemo(() => {
+  const allyantGroups = useMemo(() => {
     const query = filters.q.trim().toLowerCase()
     const scoped = filterTickets(tickets, { ...filters, component: '', q: '' }).filter((ticket) =>
       ticketMatchesQuery(ticket, query),
@@ -94,61 +93,60 @@ export default function ComponentsPage() {
     return sortComponentGroups(next, extras.sort)
   }, [tickets, filters, extras.remainingOnly, extras.sort])
 
-  const visibleGroups = useMemo(
-    () => new Map(groups.map((group) => [group.key, group])),
-    [groups],
+  const visibleAllyantKeys = useMemo(
+    () => new Set(allyantGroups.map((group) => group.key)),
+    [allyantGroups],
   )
 
-  const visibleBranchSlugs = useMemo(() => {
-    const slugs = new Set<string>()
-    for (const branch of catalogBranches) {
-      if (branch.children.some((child) => visibleGroups.has(child.key))) slugs.add(branch.slug)
-    }
-    return slugs
-  }, [catalogBranches, visibleGroups])
+  const visibleBranches = useMemo(() => {
+    return catalogBranches
+      .map((branch) => {
+        const children = branch.children
+          .filter((child) => visibleAllyantKeys.has(child.key))
+          .map((child) => allyantGroups.find((group) => group.key === child.key) ?? child)
+        if (children.length === 0) return null
+        return {
+          ...branch,
+          children,
+          total: children.reduce((sum, child) => sum + child.total, 0),
+          remaining: children.reduce((sum, child) => sum + child.remaining, 0),
+        }
+      })
+      .filter((branch): branch is NonNullable<typeof branch> => branch !== null)
+  }, [allyantGroups, catalogBranches, visibleAllyantKeys])
 
-  const visibleBranchKey = useMemo(
-    () => [...visibleBranchSlugs].sort().join('|'),
-    [visibleBranchSlugs],
+  const groups = useMemo(
+    () => sortComponentGroups(aggregateModusBranches(visibleBranches), extras.sort),
+    [visibleBranches, extras.sort],
   )
 
-  const [openSlugs, setOpenSlugs] = useState<string[]>(() => extras.open)
   const componentsReturnTo = useMemo(
-    () => componentsPath(filters, { ...extras, open: openSlugs }),
-    [extras, filters, openSlugs],
+    () => componentsPath(filters, { ...extras, open: [] }),
+    [extras, filters],
+  )
+
+  const selectedKey = useMemo(
+    () => resolveModusSelection(visibleBranches, extras.selected),
+    [visibleBranches, extras.selected],
   )
 
   const selectedGroup: ComponentGroup | undefined = useMemo(() => {
     if (groups.length === 0) return undefined
-    return groups.find((group) => group.key === extras.selected) ?? groups[0]
-  }, [groups, extras.selected])
+    return groups.find((group) => group.key === selectedKey) ?? groups[0]
+  }, [groups, selectedKey])
+
+  const allyantSourceCount = useMemo(() => {
+    const branch = visibleBranches.find((item) => item.id === selectedGroup?.key)
+    return branch?.children.length ?? 0
+  }, [selectedGroup, visibleBranches])
 
   useEffect(() => {
     if (!selectedGroup) return
     if (extras.selected === selectedGroup.key) return
-    const parent = findModusBranchForGroup(catalogBranches, selectedGroup.key)
-    const open =
-      parent && !openSlugs.includes(parent.slug) ? [...openSlugs, parent.slug] : openSlugs
-    navigate(componentsPath(filters, { ...extras, selected: selectedGroup.key, open }), {
+    navigate(componentsPath(filters, { ...extras, selected: selectedGroup.key, open: [] }), {
       replace: true,
     })
-  }, [catalogBranches, extras, filters, navigate, openSlugs, selectedGroup])
-
-  useEffect(() => {
-    if (!selectedGroup) return
-    const parent = findModusBranchForGroup(catalogBranches, selectedGroup.key)
-    if (!parent || openSlugs.includes(parent.slug)) return
-    const next = [...openSlugs, parent.slug]
-    setOpenSlugs(next)
-    if (!extras.open.includes(parent.slug)) {
-      navigate(componentsPath(filters, { ...extras, open: next }), { replace: true })
-    }
-  }, [catalogBranches, extras, filters, navigate, openSlugs, selectedGroup])
-
-  useEffect(() => {
-    if (!filters.q.trim()) return
-    setOpenSlugs(visibleBranchKey ? visibleBranchKey.split('|') : [])
-  }, [filters.q, visibleBranchKey])
+  }, [extras, filters, navigate, selectedGroup])
 
   useEffect(() => {
     if (!userPicked.current) return
@@ -195,7 +193,7 @@ export default function ComponentsPage() {
     { label: 'Name A–Z', value: 'name' },
   ]
 
-  const go = (nextFilters: TicketFilters, nextExtras = { ...extras, open: openSlugs }) => {
+  const go = (nextFilters: TicketFilters, nextExtras = { ...extras, open: [] as string[] }) => {
     navigate(componentsPath(nextFilters, nextExtras))
   }
 
@@ -205,11 +203,7 @@ export default function ComponentsPage() {
 
   const selectGroup = (key: string) => {
     userPicked.current = true
-    const parent = findModusBranchForGroup(catalogBranches, key)
-    const open =
-      parent && !openSlugs.includes(parent.slug) ? [...openSlugs, parent.slug] : openSlugs
-    if (parent && !openSlugs.includes(parent.slug)) setOpenSlugs(open)
-    go(filters, { ...extras, selected: key, open })
+    go(filters, { ...extras, selected: key, open: [] })
   }
 
   const selectedIssueCount = useMemo(
@@ -228,9 +222,13 @@ export default function ComponentsPage() {
     extras.remainingOnly
 
   const listCount = groups.length
-  const totalComponents = useMemo(
+  const totalAllyantItems = useMemo(
     () => groupTicketsByComponent(tickets).length,
     [tickets],
+  )
+  const totalModusGroups = useMemo(
+    () => groupComponentGroupsByModus(groupTicketsByComponent(tickets), extras.sort).length,
+    [tickets, extras.sort],
   )
 
   const summaryStats = useMemo(() => {
@@ -272,7 +270,7 @@ export default function ComponentsPage() {
                   ...EMPTY_COMPONENT_EXTRAS,
                   selected: extras.selected,
                   sort: extras.sort,
-                  open: extras.open,
+                  open: [],
                 })
               }
             >
@@ -284,9 +282,9 @@ export default function ComponentsPage() {
 
       <section className="components-summary-grid" aria-label="Component overview">
         <ComponentStatTile
-          label="Allyant items"
-          value={`${listCount} of ${totalComponents}`}
-          icon="component"
+          label="Modus groups"
+          value={`${listCount} of ${totalModusGroups}`}
+          icon="folder_closed"
           tone="primary"
         />
         <ComponentStatTile
@@ -302,9 +300,9 @@ export default function ComponentsPage() {
           tone={summaryStats.critical > 0 ? 'danger' : 'default'}
         />
         <ComponentStatTile
-          label="Modus groups"
-          value={String(visibleBranchSlugs.size)}
-          icon="folder_closed"
+          label="Allyant items"
+          value={String(totalAllyantItems)}
+          icon="component"
         />
       </section>
       </div>
@@ -432,86 +430,36 @@ export default function ComponentsPage() {
                 />
               </div>
             </div>
-            <ModusWcAccordion hidden={listCount === 0} aria-label="Modus component groups">
-              {catalogBranches.map((branch) => {
-                const parentVisible = visibleBranchSlugs.has(branch.slug)
-                const shown = branch.children.filter((child) => visibleGroups.has(child.key))
-                const remaining = shown.reduce(
-                  (sum, child) => sum + (visibleGroups.get(child.key)?.remaining ?? child.remaining),
-                  0,
-                )
-                const total = shown.reduce(
-                  (sum, child) => sum + (visibleGroups.get(child.key)?.total ?? child.total),
-                  0,
-                )
+            <ModusWcMenu
+              hidden={listCount === 0}
+              size="sm"
+              selectionMode="single"
+              customClass="w-full"
+              aria-label="Modus component groups"
+            >
+              {groups.map((group) => {
+                const branch = visibleBranches.find((item) => item.id === group.key)
+                const sourceCount = branch?.children.length ?? 0
                 return (
-                  <ModusWcCollapse
-                    key={branch.slug}
-                    hidden={!parentVisible}
-                    customClass="components-collapse-item"
-                    collapseId={`modus-${branch.slug}`}
-                    expanded={openSlugs.includes(branch.slug)}
-                    onExpandedChange={(event: CustomEvent<{ expanded: boolean }>) => {
-                      const nextOpen = event.detail.expanded
-                      setOpenSlugs((prev) => {
-                        const next = nextOpen
-                          ? prev.includes(branch.slug)
-                            ? prev
-                            : [...prev, branch.slug]
-                          : prev.filter((slug) => slug !== branch.slug)
-                        navigate(componentsPath(filters, { ...extras, open: next }), {
-                          replace: true,
-                        })
-                        return next
-                      })
-                    }}
+                  <ModusWcMenuItem
+                    key={group.key}
+                    label={group.label}
+                    value={group.key}
+                    size="sm"
+                    selected={selectedGroup?.key === group.key}
+                    subLabel={`${group.remaining} remaining · ${group.total} total · ${sourceCount} Allyant source${sourceCount === 1 ? '' : 's'}`}
+                    tooltipContent={
+                      sourceCount > 1
+                        ? `${group.label} — merged from ${sourceCount} Allyant labels`
+                        : group.label
+                    }
+                    onItemSelect={() => selectGroup(group.key)}
                   >
-                    <div slot="header" className="components-collapse-header">
-                      <ModusWcTypography
-                        hierarchy="p"
-                        size="sm"
-                        weight="semibold"
-                        customClass="block w-full !m-0"
-                        label={`${branch.title} · ${remaining} remaining`}
-                      />
-                      <ModusWcTypography
-                        hierarchy="p"
-                        size="xs"
-                        customClass="block w-full !m-0 text-[var(--modus-wc-color-base-content-low-contrast)]"
-                        label={`${shown.length} Allyant items · ${total} tickets`}
-                      />
-                    </div>
-                    <div slot="content" className="app-component-tree-children">
-                      <ModusWcMenu
-                        size="sm"
-                        selectionMode="single"
-                        customClass="w-full"
-                        aria-label={`${branch.title} Allyant items`}
-                      >
-                        {branch.children.map((group) => {
-                          const shown = visibleGroups.get(group.key)
-                          return (
-                            <ModusWcMenuItem
-                              key={group.key}
-                              hidden={!shown}
-                              label={group.label}
-                              value={group.key}
-                              size="sm"
-                              selected={selectedGroup?.key === group.key}
-                              subLabel={`${(shown ?? group).remaining} remaining · ${(shown ?? group).total} total`}
-                              tooltipContent={group.label}
-                              onItemSelect={() => selectGroup(group.key)}
-                            >
-                              <ModusWcIcon slot="start-icon" name="component" size="xs" decorative />
-                            </ModusWcMenuItem>
-                          )
-                        })}
-                      </ModusWcMenu>
-                    </div>
-                  </ModusWcCollapse>
+                    <ModusWcIcon slot="start-icon" name="component" size="xs" decorative />
+                  </ModusWcMenuItem>
                 )
               })}
-            </ModusWcAccordion>
+            </ModusWcMenu>
             </div>
           </ModusWcCard>
         </div>
@@ -531,7 +479,7 @@ export default function ComponentsPage() {
               <IssueCardsGrid
                 tickets={selectedGroup?.tickets ?? []}
                 resetKey={`${extras.selected}|${searchParams.toString()}`}
-                emptyLabel="No issues for this Allyant item."
+                emptyLabel="No issues for this Modus group."
                 onHubSelect={(hubId) => navigate(ticketDetailPath(hubId, componentsReturnTo))}
               />
             </ModusWcCard>
@@ -608,7 +556,11 @@ export default function ComponentsPage() {
                       hierarchy="p"
                       size="sm"
                       customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0"
-                      label={`${selectedGroup?.remaining ?? 0} tickets remaining of ${selectedGroup?.total ?? 0} total`}
+                      label={`${selectedGroup?.remaining ?? 0} tickets remaining of ${selectedGroup?.total ?? 0} total${
+                        allyantSourceCount > 1
+                          ? ` · merged from ${allyantSourceCount} Allyant sources`
+                          : ''
+                      }`}
                     />
                     <ModusWcProgress
                       value={selectedGroup ? selectedGroup.total - selectedGroup.remaining : 0}
