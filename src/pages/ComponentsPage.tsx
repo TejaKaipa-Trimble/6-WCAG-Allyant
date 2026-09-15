@@ -480,7 +480,7 @@ export default function ComponentsPage() {
                   hierarchy="h2"
                   size="md"
                   weight="semibold"
-                  label={`Issues (${selectedIssueCount} · ${selectedGroup?.total ?? 0} HUBs)`}
+                  label={`Issues for ${selectedGroup?.label ?? 'item'} (${selectedIssueCount} across ${selectedGroup?.total ?? 0} HUBs)`}
                 />
               </div>
               <IssueCardsGrid
