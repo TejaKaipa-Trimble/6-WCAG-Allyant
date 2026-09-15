@@ -1,5 +1,6 @@
 import {
   ModusWcBadge,
+  ModusWcButton,
   ModusWcCard,
   ModusWcChip,
   ModusWcTypography,
@@ -11,6 +12,7 @@ import { priorityBadgeColor, statusBadgeColor } from '../utils/tableCells'
 type IssueCardProps = {
   group: CommonIssueGroup
   onHubSelect: (hubId: string) => void
+  onViewIssue: (hubId: string) => void
 }
 
 function formatList(values: string[], limit = 3): string {
@@ -19,90 +21,108 @@ function formatList(values: string[], limit = 3): string {
   return `${values.slice(0, limit).join(', ')} (+${values.length - limit} more)`
 }
 
-export default function IssueCard({ group, onHubSelect }: IssueCardProps) {
+export default function IssueCard({ group, onHubSelect, onViewIssue }: IssueCardProps) {
+  const primaryHubId = group.hubIds[0]
+
   return (
     <ModusWcCard bordered={false} padding="compact" customClass="issue-card">
-      <div slot="title" className="flex w-full min-w-0 items-center justify-between gap-3 mb-4">
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-          <ModusWcBadge variant="filled" color={priorityBadgeColor(group.priority)} size="sm">
-            {group.priority || '—'}
-          </ModusWcBadge>
-          <ModusWcBadge variant="filled" color={statusBadgeColor(group.status)} size="sm">
-            {LOCAL_STATUS_LABEL[group.status]}
-          </ModusWcBadge>
-          {group.highRisk ? (
-            <ModusWcBadge variant="filled" color="danger" size="sm">
-              High risk
-            </ModusWcBadge>
-          ) : null}
-        </div>
-        {group.hubIds.length > 1 ? (
-          <div className="shrink-0">
-            <ModusWcBadge variant="filled" color="high-contrast" size="sm">
-              {group.hubIds.length} HUBs
-            </ModusWcBadge>
+      <div className="issue-card-row">
+        <div className="issue-card-main">
+          <div className="issue-card-badges">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+              <ModusWcBadge variant="filled" color={priorityBadgeColor(group.priority)} size="sm">
+                {group.priority || '—'}
+              </ModusWcBadge>
+              <ModusWcBadge variant="filled" color={statusBadgeColor(group.status)} size="sm">
+                {LOCAL_STATUS_LABEL[group.status]}
+              </ModusWcBadge>
+              {group.highRisk ? (
+                <ModusWcBadge variant="filled" color="danger" size="sm">
+                  High risk
+                </ModusWcBadge>
+              ) : null}
+            </div>
+            {group.hubIds.length > 1 ? (
+              <div className="shrink-0">
+                <ModusWcBadge variant="filled" color="high-contrast" size="sm">
+                  {group.hubIds.length} HUBs
+                </ModusWcBadge>
+              </div>
+            ) : null}
           </div>
-        ) : null}
-      </div>
 
-      <div className="app-card-body issue-card-body">
-        <ModusWcTypography
-          hierarchy="h3"
-          size="md"
-          weight="semibold"
-          customClass="!m-0"
-          label={group.description || 'Untitled issue'}
-        />
-
-        <div className="issue-card-meta">
-          {group.wcag ? (
-            <ModusWcTypography
-              hierarchy="p"
-              size="sm"
-              customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0"
-              label={group.wcag}
-            />
-          ) : null}
-          {group.category ? (
-            <ModusWcTypography
-              hierarchy="p"
-              size="sm"
-              customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0"
-              label={group.category}
-            />
-          ) : null}
           <ModusWcTypography
-            hierarchy="p"
-            size="sm"
-            customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0"
-            label={`Pages: ${formatList(group.pages)}`}
-          />
-        </div>
-
-        <div
-          className="issue-card-hubs"
-          role="group"
-          aria-label={`HUB IDs for ${group.description || 'issue'}`}
-        >
-          <ModusWcTypography
-            hierarchy="p"
-            size="xs"
+            hierarchy="h3"
+            size="md"
             weight="semibold"
-            customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0 shrink-0"
-            label="HUB IDs"
+            customClass="!m-0"
+            label={group.description || 'Untitled issue'}
           />
-          <div className="app-chip-row">
-            {group.hubIds.map((hubId) => (
-              <ModusWcChip
-                key={hubId}
-                label={hubId}
+
+          <div className="issue-card-meta">
+            {group.wcag ? (
+              <ModusWcTypography
+                hierarchy="p"
                 size="sm"
-                variant="outline"
-                onChipClick={() => onHubSelect(hubId)}
-                aria-label={`Open HUB ${hubId}`}
+                customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0"
+                label={group.wcag}
               />
-            ))}
+            ) : null}
+            {group.category ? (
+              <ModusWcTypography
+                hierarchy="p"
+                size="sm"
+                customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0"
+                label={group.category}
+              />
+            ) : null}
+            <ModusWcTypography
+              hierarchy="p"
+              size="sm"
+              customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0"
+              label={`Pages: ${formatList(group.pages)}`}
+            />
           </div>
+
+          <div
+            className="issue-card-hubs"
+            role="group"
+            aria-label={`HUB IDs for ${group.description || 'issue'}`}
+          >
+            <ModusWcTypography
+              hierarchy="p"
+              size="xs"
+              weight="semibold"
+              customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0 shrink-0"
+              label="HUB IDs"
+            />
+            <div className="app-chip-row">
+              {group.hubIds.map((hubId) => (
+                <ModusWcChip
+                  key={hubId}
+                  label={hubId}
+                  size="sm"
+                  variant="outline"
+                  onChipClick={() => onHubSelect(hubId)}
+                  aria-label={`Open HUB ${hubId}`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="issue-card-actions">
+          <ModusWcButton
+            variant="outlined"
+            color="tertiary"
+            size="sm"
+            disabled={!primaryHubId}
+            onButtonClick={() => {
+              if (primaryHubId) onViewIssue(primaryHubId)
+            }}
+          >
+            View Issue
+          </ModusWcButton>
         </div>
       </div>
     </ModusWcCard>

@@ -54,10 +54,14 @@ export default function IssueCardsGrid({
 
   return (
     <div className="issue-cards-panel">
-      <div className="issue-cards-grid" role="list" aria-label="Accessibility issues">
+      <div className="issue-cards-list" role="list" aria-label="Accessibility issues">
         {pageGroups.map((group: CommonIssueGroup) => (
-          <div key={group.key} className="min-w-0 h-full" role="listitem">
-            <IssueCard group={group} onHubSelect={onHubSelect} />
+          <div key={group.key} className="min-w-0" role="listitem">
+            <IssueCard
+              group={group}
+              onHubSelect={onHubSelect}
+              onViewIssue={onHubSelect}
+            />
           </div>
         ))}
       </div>

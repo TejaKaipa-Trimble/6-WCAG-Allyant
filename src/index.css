@@ -507,10 +507,6 @@ modus-wc-side-navigation modus-wc-menu-item {
   margin: 0;
 }
 
-.components-filter-card {
-  background-color: var(--modus-wc-color-base-100);
-}
-
 .components-filter-body {
   display: flex;
   flex-direction: column;
@@ -712,33 +708,72 @@ modus-wc-card .modus-wc-card.components-list-card:not(.modus-wc-card-bordered) {
   min-width: 0;
 }
 
-.issue-cards-grid {
-  display: grid;
-  grid-template-columns: 1fr;
+.issue-cards-list {
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
   min-width: 0;
+}
+
+.issue-cards-list > .min-w-0 > modus-wc-card {
+  display: block;
+  width: 100%;
+  background-color: var(--modus-wc-color-base-page);
+}
+
+/* Nested issue cards: white page surface (not cool gray base-100 / nested tints) */
+.issue-cards-list article.issue-card {
+  background-color: var(--modus-wc-color-base-page) !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.issue-card-row {
+  display: flex;
+  flex-direction: column;
   align-items: stretch;
+  gap: 0.75rem;
+  min-width: 0;
 }
 
 @media (min-width: 768px) {
-  .issue-cards-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .issue-card-row {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
   }
 }
 
-@media (min-width: 1280px) {
-  .issue-cards-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-.issue-cards-grid > .min-w-0 > modus-wc-card,
-.issue-cards-grid > .min-w-0 > modus-wc-card article {
-  height: 100%;
-}
-
-.issue-card-body {
+.issue-card-main {
+  display: flex;
+  flex-direction: column;
   gap: 0.5rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.issue-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.issue-card-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+@media (min-width: 768px) {
+  .issue-card-actions {
+    justify-content: flex-end;
+    padding-top: 0.125rem;
+  }
 }
 
 .issue-card-meta {
@@ -753,7 +788,7 @@ modus-wc-card .modus-wc-card.components-list-card:not(.modus-wc-card-bordered) {
   flex-direction: column;
   gap: 0.375rem;
   min-width: 0;
-  margin-top: 0.25rem;
+  margin-top: 0.125rem;
 }
 
 .issue-cards-footer {

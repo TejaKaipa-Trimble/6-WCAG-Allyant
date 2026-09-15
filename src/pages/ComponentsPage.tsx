@@ -309,98 +309,96 @@ export default function ComponentsPage() {
       </section>
       </div>
 
-      <ModusWcCard bordered={false} padding="compact" customClass="components-filter-card" aria-label="Filters">
-        <div className="components-filter-body">
-          <div className="components-filter-grid">
-            <ModusWcTextInput
-              label="Search"
-              size="sm"
-              value={filters.q}
-              placeholder="Component, HUB ID, page, WCAG…"
-              onInputChange={(event: CustomEvent) => update({ q: readInputString(event) })}
-            />
-            <ModusWcSelect
-              label="Page"
-              size="sm"
-              value={filters.pageName}
-              options={pageOptions}
-              onInputChange={(event: CustomEvent) => update({ pageName: readInputString(event) })}
-            />
-            <ModusWcSelect
-              label="Priority"
-              size="sm"
-              value={filters.priority}
-              options={priorityOptions}
-              onInputChange={(event: CustomEvent) => update({ priority: readInputString(event) })}
-            />
-            <ModusWcSelect
-              label="Category"
-              size="sm"
-              value={filters.category}
-              options={categoryOptions}
-              onInputChange={(event: CustomEvent) => update({ category: readInputString(event) })}
-            />
-            <ModusWcSelect
-              label="Local status"
-              size="sm"
-              value={filters.status}
-              options={statusOptions}
-              onInputChange={(event: CustomEvent) => update({ status: readInputString(event) })}
-            />
-            <ModusWcSelect
-              label="Sort list"
-              size="sm"
-              value={extras.sort}
-              options={sortOptions}
-              onInputChange={(event: CustomEvent) => {
-                const value = readInputString(event)
-                const sort: ComponentSort = value === 'name' ? 'name' : 'remaining'
-                go(filters, { ...extras, sort })
-              }}
-            />
-          </div>
-          <div className="app-chip-row" role="group" aria-label="Quick filters">
-            <ModusWcChip
-              label="High risk"
-              size="sm"
-              active={filters.highRisk}
-              variant={filters.highRisk ? 'filled' : 'outline'}
-              showRemove={filters.highRisk}
-              onChipClick={() => {
-                if (!filters.highRisk) update({ highRisk: true })
-              }}
-              onChipRemove={() => update({ highRisk: false })}
-              aria-label={filters.highRisk ? 'High risk filter, active' : 'High risk filter'}
-            />
-            <ModusWcChip
-              label="Sitewide"
-              size="sm"
-              active={filters.sitewide}
-              variant={filters.sitewide ? 'filled' : 'outline'}
-              showRemove={filters.sitewide}
-              onChipClick={() => {
-                if (!filters.sitewide) update({ sitewide: true })
-              }}
-              onChipRemove={() => update({ sitewide: false })}
-              aria-label={filters.sitewide ? 'Sitewide filter, active' : 'Sitewide filter'}
-            />
-            <ModusWcChip
-              label="Has remaining work"
-              size="sm"
-              active={extras.remainingOnly}
-              variant={extras.remainingOnly ? 'filled' : 'outline'}
-              showRemove={extras.remainingOnly}
-              onChipClick={() => {
-                if (!extras.remainingOnly) go(filters, { ...extras, remainingOnly: true })
-              }}
-              onChipRemove={() => go(filters, { ...extras, remainingOnly: false })}
-              aria-label={
-                extras.remainingOnly ? 'Remaining work filter, active' : 'Remaining work filter'
-              }
-            />
-          </div>
+      <section className="components-filter-body" aria-label="Filters">
+        <div className="components-filter-grid">
+          <ModusWcTextInput
+            label="Search"
+            size="sm"
+            value={filters.q}
+            placeholder="Component, HUB ID, page, WCAG…"
+            onInputChange={(event: CustomEvent) => update({ q: readInputString(event) })}
+          />
+          <ModusWcSelect
+            label="Page"
+            size="sm"
+            value={filters.pageName}
+            options={pageOptions}
+            onInputChange={(event: CustomEvent) => update({ pageName: readInputString(event) })}
+          />
+          <ModusWcSelect
+            label="Priority"
+            size="sm"
+            value={filters.priority}
+            options={priorityOptions}
+            onInputChange={(event: CustomEvent) => update({ priority: readInputString(event) })}
+          />
+          <ModusWcSelect
+            label="Category"
+            size="sm"
+            value={filters.category}
+            options={categoryOptions}
+            onInputChange={(event: CustomEvent) => update({ category: readInputString(event) })}
+          />
+          <ModusWcSelect
+            label="Local status"
+            size="sm"
+            value={filters.status}
+            options={statusOptions}
+            onInputChange={(event: CustomEvent) => update({ status: readInputString(event) })}
+          />
+          <ModusWcSelect
+            label="Sort list"
+            size="sm"
+            value={extras.sort}
+            options={sortOptions}
+            onInputChange={(event: CustomEvent) => {
+              const value = readInputString(event)
+              const sort: ComponentSort = value === 'name' ? 'name' : 'remaining'
+              go(filters, { ...extras, sort })
+            }}
+          />
         </div>
-      </ModusWcCard>
+        <div className="app-chip-row" role="group" aria-label="Quick filters">
+          <ModusWcChip
+            label="High risk"
+            size="sm"
+            active={filters.highRisk}
+            variant={filters.highRisk ? 'filled' : 'outline'}
+            showRemove={filters.highRisk}
+            onChipClick={() => {
+              if (!filters.highRisk) update({ highRisk: true })
+            }}
+            onChipRemove={() => update({ highRisk: false })}
+            aria-label={filters.highRisk ? 'High risk filter, active' : 'High risk filter'}
+          />
+          <ModusWcChip
+            label="Sitewide"
+            size="sm"
+            active={filters.sitewide}
+            variant={filters.sitewide ? 'filled' : 'outline'}
+            showRemove={filters.sitewide}
+            onChipClick={() => {
+              if (!filters.sitewide) update({ sitewide: true })
+            }}
+            onChipRemove={() => update({ sitewide: false })}
+            aria-label={filters.sitewide ? 'Sitewide filter, active' : 'Sitewide filter'}
+          />
+          <ModusWcChip
+            label="Has remaining work"
+            size="sm"
+            active={extras.remainingOnly}
+            variant={extras.remainingOnly ? 'filled' : 'outline'}
+            showRemove={extras.remainingOnly}
+            onChipClick={() => {
+              if (!extras.remainingOnly) go(filters, { ...extras, remainingOnly: true })
+            }}
+            onChipRemove={() => go(filters, { ...extras, remainingOnly: false })}
+            aria-label={
+              extras.remainingOnly ? 'Remaining work filter, active' : 'Remaining work filter'
+            }
+          />
+        </div>
+      </section>
 
       <div className="app-component-split">
         <div className="app-component-list-col">
