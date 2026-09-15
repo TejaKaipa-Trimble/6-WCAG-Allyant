@@ -21,6 +21,18 @@ export function isModusParentId(id: string): boolean {
   return id.startsWith(MODUS_PARENT_PREFIX)
 }
 
+export function modusSlugFromParentId(id: string): string | null {
+  if (!isModusParentId(id)) return null
+  return id.slice(MODUS_PARENT_PREFIX.length)
+}
+
+/** Official Modus Blueprint component docs URL, or null for non-catalog / Other. */
+export function modusComponentDocsUrl(slug: string): string | null {
+  if (!slug || slug === OTHER_MODUS_SLUG) return null
+  if (!MODUS_CATALOG.some((entry) => entry.slug === slug)) return null
+  return `https://modus.trimble.com/components/web/${slug}/`
+}
+
 export const MODUS_CATALOG: readonly ModusCatalogEntry[] = [
   { slug: 'accordion', title: 'Accordion' },
   { slug: 'alert', title: 'Alert', aliases: ['banner', 'alert banner'] },

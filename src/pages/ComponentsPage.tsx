@@ -8,6 +8,7 @@ import {
   ModusWcChip,
   ModusWcDivider,
   ModusWcIcon,
+  ModusWcLink,
   ModusWcMenu,
   ModusWcMenuItem,
   ModusWcProgress,
@@ -20,6 +21,10 @@ import ComponentStatTile from '../components/ComponentStatTile'
 import IssueCardsGrid from '../components/IssueCardsGrid'
 import PageHeader from '../components/PageHeader'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import {
+  modusComponentDocsUrl,
+  modusSlugFromParentId,
+} from '../lib/modusCatalog'
 import {
   aggregateModusBranches,
   componentExtrasFromSearch,
@@ -258,32 +263,41 @@ export default function ComponentsPage() {
     return Math.round((done / selectedGroup.total) * 100)
   }, [selectedGroup])
 
+  const selectedDocsUrl = useMemo(() => {
+    if (!selectedGroup) return null
+    const slug = modusSlugFromParentId(selectedGroup.key)
+    return slug ? modusComponentDocsUrl(slug) : null
+  }, [selectedGroup])
+
+  const clearFilters = () =>
+    go(EMPTY_FILTERS, {
+      ...EMPTY_COMPONENT_EXTRAS,
+      selected: extras.selected,
+      sort: extras.sort,
+      open: [],
+    })
+
   return (
     <div className="app-page app-page-fill components-page">
       <div className="components-chrome">
-      <PageHeader
-        compact
-        title="Components"
-        actions={
-          hasFilters ? (
-            <ModusWcButton
-              variant="outlined"
-              color="tertiary"
-              size="sm"
-              onButtonClick={() =>
-                go(EMPTY_FILTERS, {
-                  ...EMPTY_COMPONENT_EXTRAS,
-                  selected: extras.selected,
-                  sort: extras.sort,
-                  open: [],
-                })
-              }
-            >
-              Clear filters
-            </ModusWcButton>
-          ) : null
-        }
-      />
+      {team === 'modus' ? null : (
+        <PageHeader
+          compact
+          title="Components"
+          actions={
+            hasFilters ? (
+              <ModusWcButton
+                variant="outlined"
+                color="tertiary"
+                size="sm"
+                onButtonClick={clearFilters}
+              >
+                Clear filters
+              </ModusWcButton>
+            ) : null
+          }
+        />
+      )}
 
       <section className="components-summary-grid" aria-label="Component overview">
         <ComponentStatTile
@@ -402,6 +416,16 @@ export default function ComponentsPage() {
               extras.remainingOnly ? 'Remaining work filter, active' : 'Remaining work filter'
             }
           />
+          {team === 'modus' && hasFilters ? (
+            <ModusWcButton
+              variant="outlined"
+              color="tertiary"
+              size="sm"
+              onButtonClick={clearFilters}
+            >
+              Clear filters
+            </ModusWcButton>
+          ) : null}
         </div>
       </section>
 
@@ -411,7 +435,12 @@ export default function ComponentsPage() {
             <div slot="title" className="flex w-full min-w-0 items-center justify-between gap-2 mb-1">
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <ModusWcIcon name="component" size="sm" decorative />
-                <ModusWcTypography hierarchy="h2" size="sm" weight="semibold" label="Browse by Modus" />
+                <ModusWcTypography
+                  hierarchy={team === 'modus' ? 'h1' : 'h2'}
+                  size="sm"
+                  weight="semibold"
+                  label="Browse by Modus"
+                />
               </div>
               <div className="shrink-0">
                 <ModusWcBadge variant="filled" color="high-contrast" size="sm">
@@ -476,12 +505,25 @@ export default function ComponentsPage() {
             <ModusWcCard bordered={false} padding="compact">
               <div slot="title" className="flex w-full min-w-0 items-center justify-start gap-2 mb-4">
                 <ModusWcIcon name="dashboard" decorative />
-                <ModusWcTypography
-                  hierarchy="h2"
-                  size="md"
-                  weight="semibold"
-                  label={`Issues for ${selectedGroup?.label ?? 'item'} (${selectedIssueCount} across ${selectedGroup?.total ?? 0} HUBs)`}
-                />
+                <h2 className="issues-heading !m-0 flex min-w-0 flex-wrap items-baseline gap-x-1">
+                  <span>Issues for</span>
+                  {selectedDocsUrl && selectedGroup ? (
+                    <ModusWcLink
+                      href={selectedDocsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      underline="hover"
+                      aria-label={`${selectedGroup.label} Modus documentation (opens in a new tab)`}
+                    >
+                      {selectedGroup.label}
+                    </ModusWcLink>
+                  ) : (
+                    <span>{selectedGroup?.label ?? 'item'}</span>
+                  )}
+                  <span>
+                    ({selectedIssueCount} across {selectedGroup?.total ?? 0} HUBs)
+                  </span>
+                </h2>
               </div>
               <IssueCardsGrid
                 tickets={selectedGroup?.tickets ?? []}

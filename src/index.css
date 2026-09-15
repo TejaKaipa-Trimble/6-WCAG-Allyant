@@ -604,6 +604,13 @@ modus-wc-card .modus-wc-card.components-list-card:not(.modus-wc-card-bordered) {
   background-color: var(--modus-wc-color-base-100);
 }
 
+.issues-heading {
+  font-size: var(--modus-wc-font-size-md, 1rem);
+  font-weight: 600;
+  line-height: var(--modus-wc-line-height-md, 1.5);
+  color: var(--modus-wc-color-base-content);
+}
+
 .components-detail-hero__bar {
   width: 100%;
 }
