@@ -22,6 +22,7 @@ import {
   XL_EXPANDED_MQ,
 } from '../constants/shellLayout'
 import { useMediaQuery } from '../hooks/useMediaQuery'
+import { useTeam } from '../store/TeamStore'
 import { useTicketStore } from '../store/TicketStore'
 
 type NavItem = {
@@ -79,26 +80,45 @@ const USER_CARD = {
   avatarAlt: 'Accessibility engineer',
 }
 
+function ticketListNavValue(search: string): string {
+  const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
+  if (params.get('priority') === 'Critical' && [...params.keys()].length === 1) {
+    return 'critical'
+  }
+  if (params.get('highRisk') === 'yes' && [...params.keys()].length === 1) {
+    return 'high-risk'
+  }
+  if (params.get('status') === 'in_progress' && [...params.keys()].length === 1) {
+    return 'in-progress'
+  }
+  if (params.get('status') === 'resolved' && [...params.keys()].length === 1) {
+    return 'resolved'
+  }
+  return 'tickets'
+}
+
+function navValueFromReturnTo(returnTo: string | null): string | null {
+  if (!returnTo) return null
+  if (returnTo.startsWith('/components')) return 'components'
+  if (returnTo.startsWith('/pages')) return 'pages'
+  if (returnTo === '/' || returnTo.startsWith('/?')) return 'dashboard'
+  if (returnTo.startsWith('/tickets')) {
+    const queryIndex = returnTo.indexOf('?')
+    return ticketListNavValue(queryIndex === -1 ? '' : returnTo.slice(queryIndex))
+  }
+  return null
+}
+
 function activeNavValue(pathname: string, search: string): string {
   if (pathname === '/') return 'dashboard'
   if (pathname.startsWith('/pages')) return 'pages'
   if (pathname.startsWith('/components')) return 'components'
-  if (pathname.startsWith('/tickets/') || pathname === '/tickets') {
-    const params = new URLSearchParams(search)
-    if (params.get('priority') === 'Critical' && [...params.keys()].length === 1) {
-      return 'critical'
-    }
-    if (params.get('highRisk') === 'yes' && [...params.keys()].length === 1) {
-      return 'high-risk'
-    }
-    if (params.get('status') === 'in_progress' && [...params.keys()].length === 1) {
-      return 'in-progress'
-    }
-    if (params.get('status') === 'resolved' && [...params.keys()].length === 1) {
-      return 'resolved'
-    }
+  if (pathname.startsWith('/tickets/')) {
+    const fromReturnTo = navValueFromReturnTo(new URLSearchParams(search).get('returnTo'))
+    if (fromReturnTo) return fromReturnTo
     return 'tickets'
   }
+  if (pathname === '/tickets') return ticketListNavValue(search)
   return 'dashboard'
 }
 
@@ -109,7 +129,9 @@ type AppShellProps = {
 export default function AppShell({ children }: AppShellProps) {
   const navigate = useNavigate()
   const location = useLocation()
+  const { team } = useTeam()
   const { syncError } = useTicketStore()
+  const navItems = team === 'modus' ? NAV_ITEMS.filter((item) => item.value === 'components') : NAV_ITEMS
   const isDesktop = useMediaQuery(PUSH_LAYOUT_MQ)
   const isXl = useMediaQuery(XL_EXPANDED_MQ)
   const isNavbarWide = useMediaQuery(NAVBAR_WIDE_MQ)
@@ -221,7 +243,7 @@ export default function AppShell({ children }: AppShellProps) {
     () => ({
       mainMenu: true,
       apps: isNavbarWide,
-      search: isNavbarWide,
+      search: team !== 'modus' && isNavbarWide,
       searchInput: false,
       notifications: isNavbarWide,
       help: isNavbarWide,
@@ -229,7 +251,7 @@ export default function AppShell({ children }: AppShellProps) {
       ai: false,
       logo: true,
     }),
-    [isNavbarWide],
+    [isNavbarWide, team],
   )
 
   const showToast = (message: string) => {
@@ -252,7 +274,10 @@ export default function AppShell({ children }: AppShellProps) {
         onMainMenuOpenChange={handleMainMenuOpenChange}
         userCard={USER_CARD}
         customClass="sticky top-0 z-[120] flex-shrink-0"
-        onSearchClick={() => navigate('/tickets')}
+        onSearchClick={() => {
+          if (team === 'modus') return
+          navigate('/tickets')
+        }}
         onSearchChange={(event: CustomEvent<{ value: string }>) => {
           const value = event.detail?.value ?? ''
           navigate(value ? `/tickets?q=${encodeURIComponent(value)}` : '/tickets')
@@ -262,7 +287,7 @@ export default function AppShell({ children }: AppShellProps) {
         onHelpClick={() =>
           showToast('Status, notes, and comments sync to the wcag_allyant Supabase tables.')
         }
-        onTrimbleLogoClick={() => navigate('/')}
+        onTrimbleLogoClick={() => navigate(team === 'modus' ? '/components' : '/')}
       >
         <div slot="start" className="flex min-w-0 items-center">
           <ModusWcTypography hierarchy="p" size="md" weight="semibold" label="WCAG Allyant" />
@@ -298,7 +323,7 @@ export default function AppShell({ children }: AppShellProps) {
             }}
           >
             <ModusWcMenu size="md" customClass="w-full" aria-label="Primary navigation">
-              {NAV_ITEMS.map((item) => (
+              {navItems.map((item) => (
                 <ModusWcMenuItem
                   key={item.value}
                   label={item.label}

@@ -217,6 +217,90 @@ export function isRemainingTicket(ticket: Ticket): boolean {
   return ticket.status !== 'resolved' && ticket.status !== 'wont_fix'
 }
 
+const STATUS_RANK: Record<LocalStatus, number> = {
+  open: 0,
+  in_progress: 1,
+  wont_fix: 2,
+  resolved: 3,
+}
+
+/** Prefer the least-resolved local status when a common issue spans several HUB tickets. */
+export function primaryStatus(tickets: Ticket[]): LocalStatus {
+  if (tickets.length === 0) return 'open'
+  return tickets.reduce(
+    (best, ticket) =>
+      STATUS_RANK[ticket.status] < STATUS_RANK[best] ? ticket.status : best,
+    tickets[0].status,
+  )
+}
+
+/**
+ * Allyant “Common Issue ID” groups duplicate HUB tickets that share the same underlying finding.
+ * Tickets with an empty commonIssueId stay as singleton groups keyed by hubId.
+ */
+export type CommonIssueGroup = {
+  key: string
+  commonIssueId: string
+  tickets: Ticket[]
+  hubIds: string[]
+  description: string
+  wcag: string
+  priority: string
+  category: string
+  status: LocalStatus
+  highRisk: boolean
+  pages: string[]
+  components: string[]
+}
+
+export function commonIssueKey(ticket: Ticket): string {
+  const id = ticket.commonIssueId.trim()
+  return id ? `common:${id}` : `hub:${ticket.hubId}`
+}
+
+export function groupTicketsByCommonIssue(tickets: Ticket[]): CommonIssueGroup[] {
+  const buckets = new Map<string, Ticket[]>()
+  for (const ticket of tickets) {
+    const key = commonIssueKey(ticket)
+    const list = buckets.get(key)
+    if (list) list.push(ticket)
+    else buckets.set(key, [ticket])
+  }
+
+  const groups: CommonIssueGroup[] = [...buckets.entries()].map(([key, list]) => {
+    const sorted = [...list].sort((a, b) => {
+      const hubCmp = Number(a.hubId) - Number(b.hubId)
+      if (!Number.isNaN(hubCmp) && hubCmp !== 0) return hubCmp
+      return a.hubId.localeCompare(b.hubId)
+    })
+    const primary = sorted[0]
+    return {
+      key,
+      commonIssueId: primary.commonIssueId.trim(),
+      tickets: sorted,
+      hubIds: sorted.map((ticket) => ticket.hubId),
+      description: primary.description,
+      wcag: primary.wcag,
+      priority: primary.priority,
+      category: primary.category,
+      status: primaryStatus(sorted),
+      highRisk: sorted.some((ticket) => ticket.highRisk),
+      pages: uniqueSorted(sorted.map((ticket) => ticket.pageName)),
+      components: uniqueSorted(sorted.map((ticket) => ticket.component).filter(Boolean)),
+    }
+  })
+
+  return groups.sort((a, b) => {
+    const priorityOrder = (p: string) =>
+      p === 'Critical' ? 0 : p === 'Serious' ? 1 : p === 'Warning' ? 2 : 3
+    return (
+      priorityOrder(a.priority) - priorityOrder(b.priority) ||
+      b.hubIds.length - a.hubIds.length ||
+      a.description.localeCompare(b.description)
+    )
+  })
+}
+
 export function groupTicketsByComponent(tickets: Ticket[]): ComponentGroup[] {
   const buckets = new Map<string, Ticket[]>()
   for (const ticket of tickets) {

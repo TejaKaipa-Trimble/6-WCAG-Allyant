@@ -68,6 +68,48 @@ main#main-content {
   background-color: var(--modus-wc-color-base-page);
 }
 
+.team-gate {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: white;
+  padding: 1rem;
+}
+
+.team-gate-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--modus-wc-spacing-xl, 1.5rem);
+  width: 100%;
+  max-width: 28rem;
+}
+
+.team-gate-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--modus-wc-spacing-lg, 1rem);
+  width: 100%;
+}
+
+.team-gate modus-wc-typography {
+  --modus-wc-color-base-content: #171c1e;
+  color: #171c1e;
+}
+
+.team-gate-actions modus-wc-button {
+  width: 100%;
+}
+
+.team-gate-choice {
+  width: 100%;
+  min-height: 4.5rem;
+  font-size: var(--text-xl);
+}
+
 .skip-link {
   position: absolute;
   left: 0.75rem;
@@ -661,6 +703,65 @@ modus-wc-card .modus-wc-card.components-list-card:not(.modus-wc-card-bordered) {
 .app-table-wrap {
   min-width: 0;
   overflow-x: auto;
+}
+
+.issue-cards-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.issue-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  min-width: 0;
+  align-items: stretch;
+}
+
+@media (min-width: 768px) {
+  .issue-cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .issue-cards-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.issue-cards-grid > .min-w-0 > modus-wc-card,
+.issue-cards-grid > .min-w-0 > modus-wc-card article {
+  height: 100%;
+}
+
+.issue-card-body {
+  gap: 0.5rem;
+}
+
+.issue-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.issue-card-hubs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+  margin-top: 0.25rem;
+}
+
+.issue-cards-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .app-table-cell-clamp {

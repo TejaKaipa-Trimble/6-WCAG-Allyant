@@ -21,27 +21,29 @@
           } catch (e) {
             config = null
           }
-          var choice = localStorage.getItem('theme') || (config && config.mode) || 'system'
-          var systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-          var resolved = choice === 'system' ? (systemDark ? 'dark' : 'light') : choice
-          if (resolved !== 'dark' && resolved !== 'light') resolved = 'light'
-          var el = document.documentElement
-          el.setAttribute(
-            'data-theme',
-            resolved === 'dark' ? 'modus-modern-dark' : 'modus-modern-light',
-          )
-          el.setAttribute('data-mode', resolved)
-          el.classList.remove('light', 'dark')
-          el.classList.add(resolved)
-          if (!localStorage.getItem('theme')) {
-            localStorage.setItem('theme', choice === 'system' ? 'system' : resolved)
+          var storedMode = config && config.mode
+          var appPref = localStorage.getItem('theme')
+          var mode = 'light'
+          if (appPref === 'system' || storedMode === 'system') {
+            mode = 'light'
+          } else if (storedMode === 'dark' || storedMode === 'light') {
+            mode = storedMode
+          } else if (appPref === 'dark' || appPref === 'light') {
+            mode = appPref
           }
+          var family = (config && config.theme) || 'modus-modern'
+          if (family !== 'modus-modern' && family !== 'modus-classic' && family !== 'connect') {
+            family = 'modus-modern'
+          }
+          var el = document.documentElement
+          el.setAttribute('data-theme', family + '-' + mode)
+          el.setAttribute('data-mode', mode)
+          el.classList.remove('light', 'dark')
+          el.classList.add(mode)
+          localStorage.setItem('theme', mode)
           localStorage.setItem(
             'modus-theme-config',
-            JSON.stringify({
-              theme: (config && config.theme) || 'modus-modern',
-              mode: choice === 'system' ? 'system' : resolved,
-            }),
+            JSON.stringify({ theme: family, mode: mode }),
           )
         } catch (e) {
           /* no-op */

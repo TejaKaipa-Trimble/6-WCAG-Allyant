@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ModusWcButton,
@@ -6,46 +6,36 @@ import {
   ModusWcChip,
   ModusWcIcon,
   ModusWcSelect,
-  ModusWcTable,
   ModusWcTextInput,
   ModusWcTypography,
 } from '@trimble-oss/moduswebcomponents-react'
-import type { ISelectOption, ITableColumn, IPaginationChangeEventDetail } from '@trimble-oss/moduswebcomponents'
+import type { ISelectOption } from '@trimble-oss/moduswebcomponents'
+import IssueCardsGrid from '../components/IssueCardsGrid'
 import PageHeader from '../components/PageHeader'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
   filterTickets,
   filtersFromSearch,
-  isLocalStatus,
+  groupTicketsByCommonIssue,
   ticketDetailPath,
   ticketsPath,
   uniqueSorted,
 } from '../lib/tickets'
 import { useTicketStore } from '../store/TicketStore'
-import { LOCAL_STATUS_LABEL, type LocalStatus, type TicketFilters } from '../types/ticket'
+import { LOCAL_STATUS_LABEL, type TicketFilters } from '../types/ticket'
 import { readInputString } from '../utils/modusFormEvents'
-import {
-  clampCellText,
-  priorityBadgeColor,
-  statusCell,
-  yesNoCell,
-  badgeCell,
-} from '../utils/tableCells'
 
 export default function TicketsPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { tickets } = useTicketStore()
   const filters = useMemo(() => filtersFromSearch(searchParams.toString()), [searchParams])
-  const [page, setPage] = useState(1)
 
   useDocumentTitle('Tickets — WCAG Allyant')
 
   const filtered = useMemo(() => filterTickets(tickets, filters), [tickets, filters])
-
-  useEffect(() => {
-    setPage(1)
-  }, [searchParams])
+  const issueCount = useMemo(() => groupTicketsByCommonIssue(filtered).length, [filtered])
+  const filtersReturnTo = useMemo(() => ticketsPath(filters), [filters])
 
   const pageOptions: ISelectOption[] = useMemo(
     () => [
@@ -94,56 +84,6 @@ export default function TicketsPage() {
     navigate(ticketsPath({ ...filters, ...patch }))
   }
 
-  const columns: ITableColumn[] = useMemo(
-    () => [
-      { id: 'hubId', accessor: 'hubId', header: 'HUB ID', sortable: true },
-      { id: 'pageName', accessor: 'pageName', header: 'Page', sortable: true, cellRenderer: clampCellText },
-      { id: 'description', accessor: 'description', header: 'Issue', sortable: true, cellRenderer: clampCellText },
-      {
-        id: 'priority',
-        accessor: 'priority',
-        header: 'Priority',
-        sortable: true,
-        cellRenderer: (value: unknown) =>
-          badgeCell(String(value || '—'), priorityBadgeColor(String(value))),
-      },
-      { id: 'category', accessor: 'category', header: 'Category', sortable: true, cellRenderer: clampCellText },
-      {
-        id: 'status',
-        accessor: 'status',
-        header: 'Status',
-        sortable: true,
-        cellRenderer: (value: unknown) =>
-          isLocalStatus(String(value)) ? statusCell(String(value) as LocalStatus) : clampCellText(value),
-      },
-      {
-        id: 'highRisk',
-        accessor: 'highRiskLabel',
-        header: 'High risk',
-        sortable: true,
-        cellRenderer: (_value: unknown, row: unknown) =>
-          yesNoCell(Boolean((row as { highRisk?: boolean }).highRisk)),
-      },
-    ],
-    [],
-  )
-
-  const tableData = useMemo(
-    () =>
-      filtered.map((ticket) => ({
-        id: ticket.hubId,
-        hubId: ticket.hubId,
-        pageName: ticket.pageName,
-        description: ticket.description,
-        priority: ticket.priority,
-        category: ticket.category,
-        status: ticket.status,
-        highRisk: ticket.highRisk,
-        highRiskLabel: ticket.highRisk ? 'Yes' : '',
-      })),
-    [filtered],
-  )
-
   const hasFilters =
     Boolean(filters.q) ||
     Boolean(filters.pageName) ||
@@ -158,7 +98,7 @@ export default function TicketsPage() {
     <div className="app-page">
       <PageHeader
         title="All tickets"
-        description={`${filtered.length} of ${tickets.length} issues`}
+        description={`${issueCount} issues · ${filtered.length} of ${tickets.length} HUB tickets`}
         crumbs={[{ label: 'Dashboard', url: '/' }, { label: 'Tickets' }]}
         actions={
           hasFilters ? (
@@ -255,29 +195,14 @@ export default function TicketsPage() {
 
       <ModusWcCard bordered={false} padding="compact">
         <div slot="title" className="flex w-full min-w-0 items-center justify-start gap-2 mb-4">
-          <ModusWcIcon name="table" decorative />
+          <ModusWcIcon name="dashboard" decorative />
           <ModusWcTypography hierarchy="h2" size="md" weight="semibold" label="Issues" />
         </div>
-        <div className="app-table-wrap">
-          <ModusWcTable
-            caption="Accessibility audit tickets"
-            columns={columns}
-            data={tableData}
-            zebra
-            hover
-            sortable
-            paginated
-            currentPage={page}
-            pageSizeOptions={[25, 50, 100]}
-            onPaginationChange={(event: CustomEvent<IPaginationChangeEventDetail>) => {
-              setPage(event.detail.currentPage)
-            }}
-            onRowClick={(event: CustomEvent<{ row: { hubId?: string } }>) => {
-              const hubId = event.detail?.row?.hubId
-              if (hubId) navigate(ticketDetailPath(hubId, ticketsPath(filters)))
-            }}
-          />
-        </div>
+        <IssueCardsGrid
+          tickets={filtered}
+          resetKey={searchParams.toString()}
+          onHubSelect={(hubId) => navigate(ticketDetailPath(hubId, filtersReturnTo))}
+        />
       </ModusWcCard>
     </div>
   )

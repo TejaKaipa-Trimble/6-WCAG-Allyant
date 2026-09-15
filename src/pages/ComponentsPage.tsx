@@ -14,16 +14,12 @@ import {
   ModusWcMenuItem,
   ModusWcProgress,
   ModusWcSelect,
-  ModusWcTable,
   ModusWcTextInput,
   ModusWcTypography,
 } from '@trimble-oss/moduswebcomponents-react'
-import type {
-  IPaginationChangeEventDetail,
-  ISelectOption,
-  ITableColumn,
-} from '@trimble-oss/moduswebcomponents'
+import type { ISelectOption } from '@trimble-oss/moduswebcomponents'
 import ComponentStatTile from '../components/ComponentStatTile'
+import IssueCardsGrid from '../components/IssueCardsGrid'
 import PageHeader from '../components/PageHeader'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
@@ -35,24 +31,18 @@ import {
   findModusBranchForGroup,
   filtersFromSearch,
   groupComponentGroupsByModus,
+  groupTicketsByCommonIssue,
   groupTicketsByComponent,
-  isLocalStatus,
   sortComponentGroups,
   ticketsPath,
   uniqueSorted,
   type ComponentGroup,
   type ComponentSort,
 } from '../lib/tickets'
+import { useTeam } from '../store/TeamStore'
 import { useTicketStore } from '../store/TicketStore'
 import { EMPTY_FILTERS, LOCAL_STATUS_LABEL, type Ticket, type TicketFilters } from '../types/ticket'
 import { readInputString } from '../utils/modusFormEvents'
-import {
-  clampCellText,
-  priorityBadgeColor,
-  statusCell,
-  yesNoCell,
-  badgeCell,
-} from '../utils/tableCells'
 
 function ticketMatchesQuery(ticket: Ticket, query: string): boolean {
   if (!query) return true
@@ -74,10 +64,10 @@ function ticketMatchesQuery(ticket: Ticket, query: string): boolean {
 export default function ComponentsPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const { team } = useTeam()
   const { tickets } = useTicketStore()
   const filters = useMemo(() => filtersFromSearch(searchParams.toString()), [searchParams])
   const extras = useMemo(() => componentExtrasFromSearch(searchParams.toString()), [searchParams])
-  const [page, setPage] = useState(1)
   const userPicked = useRef(false)
 
   useDocumentTitle('Components — WCAG Allyant')
@@ -161,10 +151,6 @@ export default function ComponentsPage() {
   }, [filters.q, visibleBranchKey])
 
   useEffect(() => {
-    setPage(1)
-  }, [searchParams])
-
-  useEffect(() => {
     if (!userPicked.current) return
     userPicked.current = false
     document.getElementById('component-detail')?.scrollIntoView({ block: 'nearest' })
@@ -226,55 +212,8 @@ export default function ComponentsPage() {
     go(filters, { ...extras, selected: key, open })
   }
 
-  const columns: ITableColumn[] = useMemo(
-    () => [
-      { id: 'hubId', accessor: 'hubId', header: 'HUB ID', sortable: true },
-      { id: 'pageName', accessor: 'pageName', header: 'Page', sortable: true, cellRenderer: clampCellText },
-      { id: 'description', accessor: 'description', header: 'Issue', sortable: true, cellRenderer: clampCellText },
-      {
-        id: 'priority',
-        accessor: 'priority',
-        header: 'Priority',
-        sortable: true,
-        cellRenderer: (value: unknown) =>
-          badgeCell(String(value || '—'), priorityBadgeColor(String(value))),
-      },
-      { id: 'category', accessor: 'category', header: 'Category', sortable: true, cellRenderer: clampCellText },
-      {
-        id: 'status',
-        accessor: 'status',
-        header: 'Status',
-        sortable: true,
-        cellRenderer: (value: unknown) => {
-          const status = String(value)
-          return isLocalStatus(status) ? statusCell(status) : clampCellText(value)
-        },
-      },
-      {
-        id: 'highRisk',
-        accessor: 'highRiskLabel',
-        header: 'High risk',
-        sortable: true,
-        cellRenderer: (_value: unknown, row: unknown) =>
-          yesNoCell(Boolean((row as { highRisk?: boolean }).highRisk)),
-      },
-    ],
-    [],
-  )
-
-  const tableData = useMemo(
-    () =>
-      (selectedGroup?.tickets ?? []).map((ticket) => ({
-        id: ticket.hubId,
-        hubId: ticket.hubId,
-        pageName: ticket.pageName,
-        description: ticket.description,
-        priority: ticket.priority,
-        category: ticket.category,
-        status: ticket.status,
-        highRisk: ticket.highRisk,
-        highRiskLabel: ticket.highRisk ? 'Yes' : '',
-      })),
+  const selectedIssueCount = useMemo(
+    () => groupTicketsByCommonIssue(selectedGroup?.tickets ?? []).length,
     [selectedGroup],
   )
 
@@ -583,45 +522,38 @@ export default function ComponentsPage() {
           <div className={!selectedGroup ? 'app-is-hidden' : undefined} aria-hidden={!selectedGroup}>
             <ModusWcCard bordered={false} padding="compact">
               <div slot="title" className="flex w-full min-w-0 items-center justify-start gap-2 mb-4">
-                <ModusWcIcon name="table" decorative />
+                <ModusWcIcon name="dashboard" decorative />
                 <ModusWcTypography
                   hierarchy="h2"
                   size="md"
                   weight="semibold"
-                  label={`Tickets (${selectedGroup?.total ?? 0})`}
+                  label={`Issues (${selectedIssueCount} · ${selectedGroup?.total ?? 0} HUBs)`}
                 />
               </div>
-              <div className="app-table-wrap">
-                <ModusWcTable
-                  caption={`Tickets for ${selectedGroup?.label ?? 'component'}`}
-                  columns={columns}
-                  data={tableData}
-                  zebra
-                  hover
-                  sortable
-                  paginated
-                  currentPage={page}
-                  pageSizeOptions={[25, 50, 100]}
-                  onPaginationChange={(event: CustomEvent<IPaginationChangeEventDetail>) => {
-                    setPage(event.detail.currentPage)
-                  }}
-                  onRowClick={(event: CustomEvent<{ row: { hubId?: string } }>) => {
-                    const hubId = event.detail?.row?.hubId
-                    if (hubId) navigate(ticketDetailPath(hubId, componentsReturnTo))
-                  }}
-                />
-              </div>
+              <IssueCardsGrid
+                tickets={selectedGroup?.tickets ?? []}
+                resetKey={`${extras.selected}|${searchParams.toString()}`}
+                emptyLabel="No issues for this Allyant item."
+                onHubSelect={(hubId) => navigate(ticketDetailPath(hubId, componentsReturnTo))}
+              />
             </ModusWcCard>
           </div>
 
           <div className={!selectedGroup ? 'app-is-hidden' : undefined} aria-hidden={!selectedGroup}>
             <ModusWcCard bordered={false} padding="compact" customClass="components-detail-card">
-              <div slot="title" className="flex w-full min-w-0 items-center justify-between gap-3 mb-4">
+              <div
+                slot="title"
+                className={
+                  team === 'modus'
+                    ? 'flex w-full min-w-0 items-center justify-start gap-2 mb-4'
+                    : 'flex w-full min-w-0 items-center justify-between gap-3 mb-4'
+                }
+              >
                 <div className="flex min-w-0 flex-1 items-center gap-2">
                   <ModusWcIcon name="component" decorative />
                   <ModusWcTypography hierarchy="h2" size="md" weight="semibold" label="Item detail" />
                 </div>
-                <div className="shrink-0">
+                <div className="shrink-0" hidden={team === 'modus'}>
                   <ModusWcButton
                     variant="filled"
                     color="primary"
@@ -643,7 +575,7 @@ export default function ComponentsPage() {
                       )
                     }}
                   >
-                    <ModusWcIcon name="table" size="xs" decorative />
+                    <ModusWcIcon name="dashboard" size="xs" decorative />
                     View tickets
                   </ModusWcButton>
                 </div>
