@@ -131,7 +131,8 @@ export default function AppShell({ children }: AppShellProps) {
   const location = useLocation()
   const { team } = useTeam()
   const { syncError } = useTicketStore()
-  const navItems = team === 'modus' ? NAV_ITEMS.filter((item) => item.value === 'components') : NAV_ITEMS
+  const hideSideNav = team === 'modus'
+  const navItems = hideSideNav ? NAV_ITEMS.filter((item) => item.value === 'components') : NAV_ITEMS
   const isDesktop = useMediaQuery(PUSH_LAYOUT_MQ)
   const isXl = useMediaQuery(XL_EXPANDED_MQ)
   const isNavbarWide = useMediaQuery(NAVBAR_WIDE_MQ)
@@ -149,27 +150,30 @@ export default function AppShell({ children }: AppShellProps) {
   const selected = activeNavValue(location.pathname, location.search)
 
   const shellModeClass = useMemo(() => {
+    if (hideSideNav) return 'side-nav-hidden'
     if (!isDesktop) {
       return sideNavExpanded ? 'side-nav-overlay-open' : 'side-nav-overlay-collapsed'
     }
     return sideNavExpanded ? 'side-nav-push-expanded' : 'side-nav-push-collapsed'
-  }, [isDesktop, sideNavExpanded])
+  }, [hideSideNav, isDesktop, sideNavExpanded])
 
   useEffect(() => {
+    if (hideSideNav) {
+      setSideNavExpanded(false)
+      return
+    }
     setSideNavExpanded(isXl)
-  }, [isXl])
+  }, [hideSideNav, isXl])
 
   useEffect(() => {
     document.getElementById(MAIN_CONTENT_ID)?.scrollTo({ top: 0, left: 0 })
   }, [location.pathname])
 
   useEffect(() => {
-    if (!isDesktop) {
-      const id = requestAnimationFrame(() => setSideNavExpanded(false))
-      return () => cancelAnimationFrame(id)
-    }
-    return undefined
-  }, [isDesktop, location.pathname, location.search])
+    if (hideSideNav || isDesktop) return undefined
+    const id = requestAnimationFrame(() => setSideNavExpanded(false))
+    return () => cancelAnimationFrame(id)
+  }, [hideSideNav, isDesktop, location.pathname, location.search])
 
   useLayoutEffect(() => {
     const navbar = navbarRef.current
@@ -190,7 +194,7 @@ export default function AppShell({ children }: AppShellProps) {
     const main = document.getElementById(MAIN_CONTENT_ID)
     if (!main) return
 
-    if (!isDesktop) {
+    if (hideSideNav || !isDesktop) {
       main.style.removeProperty('margin-left')
       return
     }
@@ -207,43 +211,44 @@ export default function AppShell({ children }: AppShellProps) {
       cancelAnimationFrame(outer)
       cancelAnimationFrame(inner)
     }
-  }, [isDesktop, sideNavExpanded])
+  }, [hideSideNav, isDesktop, sideNavExpanded])
 
   useLayoutEffect(() => {
     const wrapper = railWrapperRef.current
     if (!wrapper) return
-    const overlayCollapsed = !isDesktop && !sideNavExpanded
+    const overlayCollapsed = hideSideNav || (!isDesktop && !sideNavExpanded)
     if (overlayCollapsed && wrapper.contains(document.activeElement)) {
       document.getElementById(MAIN_CONTENT_ID)?.focus({ preventScroll: true })
     }
     wrapper.inert = overlayCollapsed
-  }, [isDesktop, sideNavExpanded, location.pathname])
+  }, [hideSideNav, isDesktop, sideNavExpanded, location.pathname])
 
   useEffect(() => {
     const host = navbarRef.current
     if (!host) return
     const id = window.setTimeout(() => {
-      host.mainMenuOpen = isDesktop ? false : sideNavExpanded
+      host.mainMenuOpen = hideSideNav || isDesktop ? false : sideNavExpanded
     }, 0)
     return () => window.clearTimeout(id)
-  }, [isDesktop, sideNavExpanded, location.pathname])
+  }, [hideSideNav, isDesktop, sideNavExpanded, location.pathname])
 
   const handleMainMenuOpenChange = useCallback(
     (event: CustomEvent<boolean>) => {
+      if (hideSideNav) return
       if (isDesktop) {
         setSideNavExpanded((current) => !current)
         return
       }
       setSideNavExpanded(Boolean(event.detail))
     },
-    [isDesktop],
+    [hideSideNav, isDesktop],
   )
 
   const visibility = useMemo(
     () => ({
-      mainMenu: true,
+      mainMenu: !hideSideNav,
       apps: isNavbarWide,
-      search: team !== 'modus' && isNavbarWide,
+      search: !hideSideNav && isNavbarWide,
       searchInput: false,
       notifications: isNavbarWide,
       help: isNavbarWide,
@@ -251,7 +256,7 @@ export default function AppShell({ children }: AppShellProps) {
       ai: false,
       logo: true,
     }),
-    [isNavbarWide, team],
+    [hideSideNav, isNavbarWide],
   )
 
   const showToast = (message: string) => {
@@ -270,7 +275,7 @@ export default function AppShell({ children }: AppShellProps) {
         }}
         visibility={visibility}
         condensed={!isNavbarWide}
-        mainMenuOpen={isDesktop ? false : sideNavExpanded}
+        mainMenuOpen={hideSideNav || isDesktop ? false : sideNavExpanded}
         onMainMenuOpenChange={handleMainMenuOpenChange}
         userCard={USER_CARD}
         customClass="sticky top-0 z-[120] flex-shrink-0"
@@ -310,33 +315,35 @@ export default function AppShell({ children }: AppShellProps) {
       </ModusWcNavbar>
 
       <div className="app-body-row">
-        <div ref={railWrapperRef} className="side-rail-wrapper">
-          <ModusWcSideNavigation
-            key={mode}
-            expanded={sideNavExpanded}
-            mode={mode}
-            maxWidth={SIDE_NAV_MAX_WIDTH}
-            targetContent={MAIN_CONTENT_SELECTOR}
-            collapseOnClickOutside={!isDesktop}
-            onExpandedChange={(event: CustomEvent<boolean>) => {
-              setSideNavExpanded(Boolean(event.detail))
-            }}
-          >
-            <ModusWcMenu size="md" customClass="w-full" aria-label="Primary navigation">
-              {navItems.map((item) => (
-                <ModusWcMenuItem
-                  key={item.value}
-                  label={item.label}
-                  value={item.value}
-                  selected={selected === item.value}
-                  onItemSelect={() => navigate(item.path)}
-                >
-                  <ModusWcIcon slot="start-icon" name={item.icon} size="md" decorative />
-                </ModusWcMenuItem>
-              ))}
-            </ModusWcMenu>
-          </ModusWcSideNavigation>
-        </div>
+        {hideSideNav ? null : (
+          <div ref={railWrapperRef} className="side-rail-wrapper">
+            <ModusWcSideNavigation
+              key={mode}
+              expanded={sideNavExpanded}
+              mode={mode}
+              maxWidth={SIDE_NAV_MAX_WIDTH}
+              targetContent={MAIN_CONTENT_SELECTOR}
+              collapseOnClickOutside={!isDesktop}
+              onExpandedChange={(event: CustomEvent<boolean>) => {
+                setSideNavExpanded(Boolean(event.detail))
+              }}
+            >
+              <ModusWcMenu size="md" customClass="w-full" aria-label="Primary navigation">
+                {navItems.map((item) => (
+                  <ModusWcMenuItem
+                    key={item.value}
+                    label={item.label}
+                    value={item.value}
+                    selected={selected === item.value}
+                    onItemSelect={() => navigate(item.path)}
+                  >
+                    <ModusWcIcon slot="start-icon" name={item.icon} size="md" decorative />
+                  </ModusWcMenuItem>
+                ))}
+              </ModusWcMenu>
+            </ModusWcSideNavigation>
+          </div>
+        )}
 
         <main id={MAIN_CONTENT_ID} className="page-main" tabIndex={-1}>
           {syncError ? (

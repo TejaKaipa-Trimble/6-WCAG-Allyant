@@ -206,6 +206,11 @@ export default function ComponentsPage() {
     go(filters, { ...extras, selected: key, open: [] })
   }
 
+  useEffect(() => {
+    if (team !== 'modus' || !filters.pageName) return
+    go({ ...filters, pageName: '' })
+  }, [team, filters.pageName])
+
   const selectedIssueCount = useMemo(
     () => groupTicketsByCommonIssue(selectedGroup?.tickets ?? []).length,
     [selectedGroup],
@@ -316,13 +321,15 @@ export default function ComponentsPage() {
             placeholder="Component, HUB ID, page, WCAG…"
             onInputChange={(event: CustomEvent) => update({ q: readInputString(event) })}
           />
-          <ModusWcSelect
-            label="Page"
-            size="sm"
-            value={filters.pageName}
-            options={pageOptions}
-            onInputChange={(event: CustomEvent) => update({ pageName: readInputString(event) })}
-          />
+          <div hidden={team === 'modus'}>
+            <ModusWcSelect
+              label="Page"
+              size="sm"
+              value={filters.pageName}
+              options={pageOptions}
+              onInputChange={(event: CustomEvent) => update({ pageName: readInputString(event) })}
+            />
+          </div>
           <ModusWcSelect
             label="Priority"
             size="sm"

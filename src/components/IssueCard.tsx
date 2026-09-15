@@ -6,6 +6,7 @@ import {
   ModusWcTypography,
 } from '@trimble-oss/moduswebcomponents-react'
 import type { CommonIssueGroup } from '../lib/tickets'
+import { useTeam } from '../store/TeamStore'
 import { LOCAL_STATUS_LABEL } from '../types/ticket'
 import { priorityBadgeColor, statusBadgeColor } from '../utils/tableCells'
 
@@ -22,7 +23,9 @@ function formatList(values: string[], limit = 3): string {
 }
 
 export default function IssueCard({ group, onHubSelect, onViewIssue }: IssueCardProps) {
+  const { team } = useTeam()
   const primaryHubId = group.hubIds[0]
+  const showHubIds = team !== 'modus'
 
   return (
     <ModusWcCard bordered={false} padding="compact" customClass="issue-card">
@@ -79,6 +82,7 @@ export default function IssueCard({ group, onHubSelect, onViewIssue }: IssueCard
             className="issue-card-hubs"
             role="group"
             aria-label={`HUB IDs for ${group.description || 'issue'}`}
+            hidden={!showHubIds}
           >
             <div className="issue-card-hubs-header">
               <ModusWcTypography

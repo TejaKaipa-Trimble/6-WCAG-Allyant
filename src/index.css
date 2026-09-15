@@ -185,12 +185,23 @@ main#main-content {
   .app-shell.side-nav-push-expanded #main-content {
     margin-left: var(--side-nav-max-width);
   }
+
+  .app-shell.side-nav-hidden #main-content {
+    margin-left: 0 !important;
+  }
 }
 
 @media (max-width: 1023px) {
   .app-shell #main-content {
     margin-left: 0 !important;
   }
+}
+
+.app-shell.side-nav-hidden .side-rail-wrapper {
+  display: none;
+  width: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 modus-wc-side-navigation modus-wc-menu-item {
