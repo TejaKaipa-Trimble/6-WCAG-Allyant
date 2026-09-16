@@ -15,9 +15,9 @@ import {
   insertComment,
   replaceAllOverlays,
   subscribeTicketChanges,
-  upsertOverlay,
+  upsertOverlays,
 } from '../lib/ticketRemote'
-import { mergeTickets } from '../lib/tickets'
+import { mergeTickets, relatedHubIds } from '../lib/tickets'
 import type { LocalStatus, Ticket, TicketComment, TicketOverlay } from '../types/ticket'
 
 const MIGRATED_KEY = 'wcag-allyant-supabase-migrated-v1'
@@ -145,20 +145,25 @@ export function TicketStoreProvider({ children }: { children: ReactNode }) {
     }
   }, [hydrateFromRemote])
 
-  const commitOverlay = useCallback(
-    async (hubId: string, nextOverlay: TicketOverlay, extra?: { comment?: TicketComment }) => {
+  const persistOverlays = useCallback(
+    async (
+      patch: Record<string, TicketOverlay>,
+      extra?: { hubId: string; comment: TicketComment },
+    ) => {
       const previous = overlaysRef.current
-      const next = { ...previous, [hubId]: nextOverlay }
+      const next = { ...previous, ...patch }
       skipRealtimeRef.current += 1
       setOverlays(next)
       cacheLocal(next)
       try {
-        if (extra?.comment) {
-          await insertComment(hubId, nextOverlay, extra.comment)
-        } else {
-          await upsertOverlay(hubId, nextOverlay)
+        if (isSupabaseConfigured()) {
+          if (extra) {
+            await insertComment(extra.hubId, patch[extra.hubId], extra.comment)
+          } else {
+            await upsertOverlays(patch)
+          }
+          setSyncError(null)
         }
-        setSyncError(null)
       } catch (error) {
         setOverlays(previous)
         cacheLocal(previous)
@@ -172,6 +177,16 @@ export function TicketStoreProvider({ children }: { children: ReactNode }) {
     [],
   )
 
+  const commitOverlay = useCallback(
+    async (hubId: string, nextOverlay: TicketOverlay, extra?: { comment?: TicketComment }) => {
+      await persistOverlays(
+        { [hubId]: nextOverlay },
+        extra?.comment ? { hubId, comment: extra.comment } : undefined,
+      )
+    },
+    [persistOverlays],
+  )
+
   const tickets = useMemo(() => mergeTickets(overlays), [overlays])
 
   const getTicket = useCallback(
@@ -181,9 +196,18 @@ export function TicketStoreProvider({ children }: { children: ReactNode }) {
 
   const setStatus = useCallback(
     (hubId: string, status: LocalStatus) => {
-      void commitOverlay(hubId, overlayFor(overlaysRef.current[hubId], { status }))
+      const current = overlaysRef.current
+      const stamp = new Date().toISOString()
+      const patch: Record<string, TicketOverlay> = {}
+      for (const relatedId of relatedHubIds(hubId)) {
+        patch[relatedId] = {
+          ...overlayFor(current[relatedId], { status }),
+          updatedAt: stamp,
+        }
+      }
+      void persistOverlays(patch)
     },
-    [commitOverlay],
+    [persistOverlays],
   )
 
   const setNotes = useCallback(

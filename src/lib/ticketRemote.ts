@@ -72,21 +72,26 @@ export async function fetchOverlays(): Promise<Record<string, TicketOverlay>> {
   )
 }
 
+export async function upsertOverlays(
+  overlays: Record<string, Pick<TicketOverlay, 'status' | 'notes' | 'updatedAt'>>,
+): Promise<void> {
+  const rows = Object.entries(overlays).map(([hubId, overlay]) => ({
+    hub_id: hubId,
+    status: overlay.status,
+    notes: overlay.notes,
+    updated_at: overlay.updatedAt,
+  }))
+  if (rows.length === 0) return
+  const supabase = getSupabase()
+  const { error } = await supabase.from(OVERLAYS_TABLE).upsert(rows, { onConflict: 'hub_id' })
+  throwIfError(error, rows.length === 1 ? 'Save ticket' : 'Save ticket status')
+}
+
 export async function upsertOverlay(
   hubId: string,
   overlay: Pick<TicketOverlay, 'status' | 'notes' | 'updatedAt'>,
 ): Promise<void> {
-  const supabase = getSupabase()
-  const { error } = await supabase.from(OVERLAYS_TABLE).upsert(
-    {
-      hub_id: hubId,
-      status: overlay.status,
-      notes: overlay.notes,
-      updated_at: overlay.updatedAt,
-    },
-    { onConflict: 'hub_id' },
-  )
-  throwIfError(error, 'Save ticket')
+  await upsertOverlays({ [hubId]: overlay })
 }
 
 export async function insertComment(

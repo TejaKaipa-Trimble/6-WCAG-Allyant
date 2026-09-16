@@ -61,6 +61,10 @@ export const LOCAL_STATUS_LABEL: Record<LocalStatus, string> = {
   wont_fix: "Won't fix",
 }
 
+export const LOCAL_STATUS_OPTIONS = Object.entries(LOCAL_STATUS_LABEL).map(
+  ([value, label]) => ({ label, value }),
+)
+
 export const EMPTY_FILTERS: TicketFilters = {
   q: '',
   pageName: '',

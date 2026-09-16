@@ -781,14 +781,17 @@ modus-wc-card .modus-wc-card.components-list-card:not(.modus-wc-card-bordered) {
 
 .issue-card-actions {
   display: flex;
+  flex-direction: column;
   flex-shrink: 0;
-  align-items: flex-start;
+  align-items: stretch;
   justify-content: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
 }
 
 @media (min-width: 768px) {
   .issue-card-actions {
-    justify-content: flex-end;
+    width: 12.5rem;
     padding-top: 0.125rem;
   }
 }

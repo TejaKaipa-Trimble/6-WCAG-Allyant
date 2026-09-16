@@ -10,23 +10,19 @@ import {
   ModusWcTextarea,
   ModusWcTypography,
 } from '@trimble-oss/moduswebcomponents-react'
-import type { ISelectOption } from '@trimble-oss/moduswebcomponents'
 import PageHeader from '../components/PageHeader'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import {
   backLabelForPath,
   buildTicketDetailCrumbs,
   isLocalStatus,
+  relatedHubIds,
   resolveBackPath,
   ticketDetailPath,
 } from '../lib/tickets'
 import { useTicketStore } from '../store/TicketStore'
-import { LOCAL_STATUS_LABEL, type LocalStatus } from '../types/ticket'
+import { LOCAL_STATUS_OPTIONS, type LocalStatus } from '../types/ticket'
 import { readInputString } from '../utils/modusFormEvents'
-
-const STATUS_OPTIONS: ISelectOption[] = Object.entries(LOCAL_STATUS_LABEL).map(
-  ([value, label]) => ({ label, value }),
-)
 
 function formatWhen(iso: string): string {
   try {
@@ -94,6 +90,11 @@ export default function TicketDetailPage() {
   }
 
   const notesValue = draftNotes ?? ticket.notes
+  const relatedCount = relatedHubIds(ticket.hubId).length
+  const statusHelp =
+    relatedCount > 1
+      ? `Shared with Modus and Unity. Changing this updates all ${relatedCount} HUB tickets with the same finding on this Modus component.`
+      : 'Shared with Modus and Unity — both teams see the same status.'
 
   return (
     <div className="app-page">
@@ -128,7 +129,7 @@ export default function TicketDetailPage() {
       />
 
       <ModusWcCard bordered={false} padding="compact">
-        <div slot="title" className="flex w-full min-w-0 items-center justify-between gap-3 mb-4">
+        <div slot="title" className="flex w-full min-w-0 items-center justify-start gap-2 mb-4">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <ModusWcIcon name="clipboard" decorative />
             <ModusWcTypography hierarchy="h2" size="md" weight="semibold" label="Ticket status" />
@@ -136,10 +137,10 @@ export default function TicketDetailPage() {
         </div>
         <div className="app-card-body">
           <ModusWcSelect
-            label="Local status"
+            label="Status"
             size="sm"
             value={ticket.status}
-            options={STATUS_OPTIONS}
+            options={LOCAL_STATUS_OPTIONS}
             onInputChange={(event: CustomEvent) => {
               const value = readInputString(event)
               if (isLocalStatus(value)) setStatus(ticket.hubId, value as LocalStatus)
@@ -149,8 +150,14 @@ export default function TicketDetailPage() {
             hierarchy="p"
             size="sm"
             customClass="text-[var(--modus-wc-color-base-content-low-contrast)]"
-            label={`Allyant status: ${ticket.allyantStatus || '—'}${
-              ticket.updatedAt ? ` · Last local update ${formatWhen(ticket.updatedAt)}` : ''
+            label={statusHelp}
+          />
+          <ModusWcTypography
+            hierarchy="p"
+            size="sm"
+            customClass="text-[var(--modus-wc-color-base-content-low-contrast)]"
+            label={`Allyant export status: ${ticket.allyantStatus || '—'}${
+              ticket.updatedAt ? ` · Last tracker update ${formatWhen(ticket.updatedAt)}` : ''
             }`}
           />
         </div>

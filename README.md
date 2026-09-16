@@ -2,7 +2,7 @@
 
 Ticket tracker for the Trimble Unity Construct 2025 Allyant accessibility audit.
 
-Audit issues are imported from `Resources/trimble-trimble-unity-construct-2025-audit-ongoing-support-published-issues-2026-09-10-18_02_33.csv` into `src/data/issues.json`. Status, notes, and comments sync to this app’s own Supabase tables (`wcag_allyant_ticket_overlays`, `wcag_allyant_ticket_comments`). Those tables are prefixed so later apps in the same project will not collide. Export progress from the dashboard if you want a JSON backup.
+Audit issues are imported from `Resources/trimble-trimble-unity-construct-2025-audit-ongoing-support-published-issues-2026-09-10-18_02_33.csv` into `src/data/issues.json`. Status, notes, and comments sync to this app’s own Supabase tables (`wcag_allyant_ticket_overlays`, `wcag_allyant_ticket_comments`). Status is shared between Modus and Unity users. Unique issues are grouped by Modus component + finding description; changing status on one HUB updates every HUB chip for that same finding. Those tables are prefixed so later apps in the same project will not collide. Export progress from the dashboard if you want a JSON backup.
 
 ## Supabase (first run)
 

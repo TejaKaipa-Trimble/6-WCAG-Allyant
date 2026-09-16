@@ -182,6 +182,60 @@ export function isLocalStatus(value: string): value is LocalStatus {
   return value === 'open' || value === 'in_progress' || value === 'resolved' || value === 'wont_fix'
 }
 
+/** Normalize Allyant finding text so duplicate wording merges across HUBs. */
+export function normalizeIssueDescription(description: string): string {
+  return description.trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
+/**
+ * Unique finding key: Modus catalog parent + normalized description.
+ * Same wording under different Modus components stays separate; empty text stays singleton.
+ * Unmatched Allyant labels (Other) stay scoped to their Allyant component name.
+ */
+export function uniqueIssueKey(ticket: Pick<Ticket, 'hubId' | 'component' | 'description'>): string {
+  const desc = normalizeIssueDescription(ticket.description)
+  if (!desc) return `hub:${ticket.hubId}`
+  const matched = matchModusCatalog(ticket.component)
+  const scope =
+    matched.slug === OTHER_MODUS_SLUG
+      ? `allyant:${ticket.component.trim() || '__none__'}`
+      : matched.slug
+  return `issue:${scope}:${desc}`
+}
+
+const UNIQUE_ISSUE_BY_HUB = new Map<string, string>()
+const HUBS_BY_UNIQUE_ISSUE = new Map<string, string[]>()
+
+for (const issue of AUDIT_ISSUES) {
+  const key = uniqueIssueKey(issue)
+  UNIQUE_ISSUE_BY_HUB.set(issue.hubId, key)
+  const list = HUBS_BY_UNIQUE_ISSUE.get(key)
+  if (list) list.push(issue.hubId)
+  else HUBS_BY_UNIQUE_ISSUE.set(key, [issue.hubId])
+}
+
+/** Every HUB that shares this ticket’s unique finding (Modus component + description). */
+export function relatedHubIds(hubId: string): string[] {
+  const key = UNIQUE_ISSUE_BY_HUB.get(hubId)
+  if (!key) return [hubId]
+  return HUBS_BY_UNIQUE_ISSUE.get(key) ?? [hubId]
+}
+
+/** Split Allyant WCAG field into trimmed entries; union + sort for grouped cards. */
+export function unionWcagLabels(tickets: Pick<Ticket, 'wcag'>[]): string {
+  const byCriterion = new Map<string, string>()
+  for (const ticket of tickets) {
+    for (const entry of ticket.wcag.split(',').map((part) => part.trim()).filter(Boolean)) {
+      const criterion = entry.match(/^(\d+\.\d+\.\d+)/)?.[1] ?? entry
+      if (!byCriterion.has(criterion)) byCriterion.set(criterion, entry)
+    }
+  }
+  return [...byCriterion.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }))
+    .map(([, entry]) => entry)
+    .join(', ')
+}
+
 export const UNSPECIFIED_COMPONENT = '__none__'
 
 export type ComponentSort = 'name' | 'remaining'
@@ -240,7 +294,7 @@ const STATUS_RANK: Record<LocalStatus, number> = {
   resolved: 3,
 }
 
-/** Prefer the least-resolved local status when a common issue spans several HUB tickets. */
+/** Prefer the least-resolved local status when a unique finding spans several HUB tickets. */
 export function primaryStatus(tickets: Ticket[]): LocalStatus {
   if (tickets.length === 0) return 'open'
   return tickets.reduce(
@@ -251,8 +305,8 @@ export function primaryStatus(tickets: Ticket[]): LocalStatus {
 }
 
 /**
- * Allyant “Common Issue ID” groups duplicate HUB tickets that share the same underlying finding.
- * Tickets with an empty commonIssueId stay as singleton groups keyed by hubId.
+ * One card per unique finding (Modus component + description).
+ * HUB chips list every Allyant ticket that reported the same wording on that component.
  */
 export type CommonIssueGroup = {
   key: string
@@ -269,16 +323,16 @@ export type CommonIssueGroup = {
   components: string[]
 }
 
+/** @deprecated Prefer uniqueIssueKey — kept for older call sites. */
 export function commonIssueKey(ticket: Ticket): string {
-  const id = ticket.commonIssueId.trim()
-  return id ? `common:${id}` : `hub:${ticket.hubId}`
+  return uniqueIssueKey(ticket)
 }
 
-export function groupTicketsByCommonIssue(tickets: Ticket[]): CommonIssueGroup[] {
+export function groupTicketsByUniqueIssue(tickets: Ticket[]): CommonIssueGroup[] {
   const uniqueTickets = [...new Map(tickets.map((ticket) => [ticket.hubId, ticket])).values()]
   const buckets = new Map<string, Ticket[]>()
   for (const ticket of uniqueTickets) {
-    const key = commonIssueKey(ticket)
+    const key = uniqueIssueKey(ticket)
     const list = buckets.get(key)
     if (list) list.push(ticket)
     else buckets.set(key, [ticket])
@@ -293,11 +347,11 @@ export function groupTicketsByCommonIssue(tickets: Ticket[]): CommonIssueGroup[]
     const primary = sorted[0]
     return {
       key,
-      commonIssueId: primary.commonIssueId.trim(),
+      commonIssueId: uniqueSorted(sorted.map((ticket) => ticket.commonIssueId.trim()).filter(Boolean)).join(', '),
       tickets: sorted,
       hubIds: [...new Set(sorted.map((ticket) => ticket.hubId))],
-      description: primary.description,
-      wcag: primary.wcag,
+      description: primary.description.trim() || 'Untitled issue',
+      wcag: unionWcagLabels(sorted),
       priority: primary.priority,
       category: primary.category,
       status: primaryStatus(sorted),
@@ -316,6 +370,11 @@ export function groupTicketsByCommonIssue(tickets: Ticket[]): CommonIssueGroup[]
       a.description.localeCompare(b.description)
     )
   })
+}
+
+/** Alias for callers that still use the Allyant “common issue” name. */
+export function groupTicketsByCommonIssue(tickets: Ticket[]): CommonIssueGroup[] {
+  return groupTicketsByUniqueIssue(tickets)
 }
 
 function componentGroupFromTickets(key: string, label: string, tickets: Ticket[]): ComponentGroup {

@@ -4,7 +4,7 @@ import {
   ModusWcTypography,
 } from '@trimble-oss/moduswebcomponents-react'
 import IssueCard from './IssueCard'
-import { groupTicketsByCommonIssue, type CommonIssueGroup } from '../lib/tickets'
+import { groupTicketsByUniqueIssue, type CommonIssueGroup } from '../lib/tickets'
 import type { Ticket } from '../types/ticket'
 
 const PAGE_SIZE = 24
@@ -24,7 +24,7 @@ export default function IssueCardsGrid({
 }: IssueCardsGridProps) {
   const [page, setPage] = useState(1)
 
-  const groups = useMemo(() => groupTicketsByCommonIssue(tickets), [tickets])
+  const groups = useMemo(() => groupTicketsByUniqueIssue(tickets), [tickets])
 
   useEffect(() => {
     setPage(1)
