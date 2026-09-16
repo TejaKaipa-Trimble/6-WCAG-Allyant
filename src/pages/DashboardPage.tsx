@@ -120,7 +120,7 @@ export default function DashboardPage() {
     <div className="app-page">
       <PageHeader
         title="WCAG Allyant"
-        description="Ticket tracker for the Unity Construct 2025 Allyant audit. Status, notes, and comments sync to this app’s Supabase tables (no login)."
+        description="Ticket tracker for the Unity Construct 2025 Allyant audit. Status is shared between Modus and Unity. Notes and comments sync to this app’s Supabase tables (no login)."
         actions={
           <>
             <ModusWcButton
@@ -147,7 +147,7 @@ export default function DashboardPage() {
       <ModusWcAlert
         variant="info"
         alertTitle="Developer workflow"
-        alertDescription="Open a ticket, mark it In progress while you fix Unity Construct, then Resolved or Won’t fix. Allyant hub fields stay read-only. Progress is stored in the wcag_allyant_* tables only."
+        alertDescription="Open a ticket, mark it In progress while you fix Unity Construct, then Resolved or Won’t fix. The same status is visible to Modus and Unity. Allyant hub fields stay read-only. Progress is stored in the wcag_allyant_* tables only."
       />
 
       <section className="app-kpi-grid" aria-label="Ticket counts">

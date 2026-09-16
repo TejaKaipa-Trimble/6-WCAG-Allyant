@@ -42,18 +42,18 @@ function AppTree() {
   }
 
   return (
-    <TicketStoreProvider>
-      <AppShell>
-        <AppRoutes />
-      </AppShell>
-    </TicketStoreProvider>
+    <AppShell>
+      <AppRoutes />
+    </AppShell>
   )
 }
 
 export default function App() {
   return (
     <TeamProvider>
-      <AppTree />
+      <TicketStoreProvider>
+        <AppTree />
+      </TicketStoreProvider>
     </TeamProvider>
   )
 }

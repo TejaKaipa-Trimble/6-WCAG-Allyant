@@ -157,7 +157,7 @@ export default function TicketsPage() {
               onInputChange={(event: CustomEvent) => update({ category: readInputString(event) })}
             />
             <ModusWcSelect
-              label="Local status"
+              label="Status"
               size="sm"
               value={filters.status}
               options={statusOptions}
