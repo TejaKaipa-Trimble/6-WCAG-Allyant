@@ -120,7 +120,7 @@ export default function DashboardPage() {
     <div className="app-page">
       <PageHeader
         title="WCAG Allyant"
-        description="Ticket tracker for the Unity Construct 2025 Allyant audit. Status is shared between Modus and Unity. Notes and comments sync to this app’s Supabase tables (no login)."
+        description="Ticket tracker for the Unity Construct 2025 Allyant audit. Status is shared between Modus and Unity. Comments sync to this app’s Supabase tables (no login)."
         actions={
           <>
             <ModusWcButton

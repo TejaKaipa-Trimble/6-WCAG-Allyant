@@ -714,6 +714,87 @@ modus-wc-card .modus-wc-card.components-list-card:not(.modus-wc-card-bordered) {
   content: none;
 }
 
+/* —— Ticket detail —— */
+
+.ticket-detail-page {
+  gap: 0.75rem;
+}
+
+.ticket-status-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.ticket-status-bar__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.ticket-status-bar__title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ticket-status-bar__select {
+  width: 12.5rem;
+  max-width: 100%;
+  flex-shrink: 0;
+}
+
+.ticket-detail-split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  align-items: start;
+  min-width: 0;
+}
+
+.ticket-detail-main,
+.ticket-detail-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.ticket-meta-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.ticket-meta-row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 9rem) minmax(0, 1fr);
+  gap: 0.5rem 0.75rem;
+  align-items: start;
+  min-width: 0;
+}
+
+.ticket-comments-body {
+  gap: 0.75rem;
+}
+
+@media (min-width: 1024px) {
+  .ticket-detail-split {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  }
+
+  .ticket-detail-aside {
+    position: sticky;
+    top: 0.5rem;
+  }
+}
+
 .app-table-wrap {
   min-width: 0;
   overflow-x: auto;

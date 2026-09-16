@@ -290,7 +290,7 @@ export default function AppShell({ children }: AppShellProps) {
         onAppsClick={() => showToast('Apps launcher is not wired in this local tracker.')}
         onNotificationsClick={() => showToast('No notifications in the local prototype.')}
         onHelpClick={() =>
-          showToast('Status, notes, and comments sync to the wcag_allyant Supabase tables.')
+          showToast('Status and comments sync to the wcag_allyant Supabase tables.')
         }
         onTrimbleLogoClick={() => navigate(team === 'modus' ? '/components' : '/')}
       >
