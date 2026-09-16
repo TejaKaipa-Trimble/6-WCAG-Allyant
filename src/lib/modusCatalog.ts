@@ -30,7 +30,7 @@ export function modusSlugFromParentId(id: string): string | null {
 export function modusComponentDocsUrl(slug: string): string | null {
   if (!slug || slug === OTHER_MODUS_SLUG) return null
   if (!MODUS_CATALOG.some((entry) => entry.slug === slug)) return null
-  return `https://modus.trimble.com/components/web/${slug}/`
+  return `https://modus.trimble.com/components/${slug}/`
 }
 
 export const MODUS_CATALOG: readonly ModusCatalogEntry[] = [
