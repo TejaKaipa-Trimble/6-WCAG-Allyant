@@ -12,6 +12,7 @@ import { LOCAL_STORE_KEY } from '../constants/shellLayout'
 import { isSupabaseConfigured } from '../lib/supabaseClient'
 import {
   fetchOverlays,
+  deleteComment as deleteCommentRemote,
   insertComment,
   replaceAllOverlays,
   subscribeTicketChanges,
@@ -35,7 +36,8 @@ type TicketStoreValue = {
   getTicket: (hubId: string) => Ticket | undefined
   setStatus: (hubId: string, status: LocalStatus) => void
   setNotes: (hubId: string, notes: string) => void
-  addComment: (hubId: string, text: string) => void
+  addComment: (hubId: string, text: string, author: string) => void
+  deleteComment: (hubId: string, commentId: string) => void
   exportProgress: () => string
   importProgress: (json: string) => void
   resetProgress: () => void
@@ -54,6 +56,12 @@ function loadLocalStore(): StoreShape {
     const parsed = JSON.parse(raw) as StoreShape
     if (parsed?.version !== 1 || typeof parsed.tickets !== 'object' || !parsed.tickets) {
       return emptyStore()
+    }
+    for (const overlay of Object.values(parsed.tickets)) {
+      overlay.comments = (overlay.comments ?? []).map((comment) => ({
+        ...comment,
+        author: comment.author ?? '',
+      }))
     }
     return parsed
   } catch {
@@ -148,7 +156,9 @@ export function TicketStoreProvider({ children }: { children: ReactNode }) {
   const persistOverlays = useCallback(
     async (
       patch: Record<string, TicketOverlay>,
-      extra?: { hubId: string; comment: TicketComment },
+      extra?:
+        | { hubId: string; comment: TicketComment }
+        | { hubId: string; deleteCommentId: string },
     ) => {
       const previous = overlaysRef.current
       const next = { ...previous, ...patch }
@@ -157,8 +167,10 @@ export function TicketStoreProvider({ children }: { children: ReactNode }) {
       cacheLocal(next)
       try {
         if (isSupabaseConfigured()) {
-          if (extra) {
+          if (extra && 'comment' in extra) {
             await insertComment(extra.hubId, patch[extra.hubId], extra.comment)
+          } else if (extra && 'deleteCommentId' in extra) {
+            await deleteCommentRemote(extra.hubId, patch[extra.hubId], extra.deleteCommentId)
           } else {
             await upsertOverlays(patch)
           }
@@ -178,10 +190,18 @@ export function TicketStoreProvider({ children }: { children: ReactNode }) {
   )
 
   const commitOverlay = useCallback(
-    async (hubId: string, nextOverlay: TicketOverlay, extra?: { comment?: TicketComment }) => {
+    async (
+      hubId: string,
+      nextOverlay: TicketOverlay,
+      extra?: { comment?: TicketComment; deleteCommentId?: string },
+    ) => {
       await persistOverlays(
         { [hubId]: nextOverlay },
-        extra?.comment ? { hubId, comment: extra.comment } : undefined,
+        extra?.comment
+          ? { hubId, comment: extra.comment }
+          : extra?.deleteCommentId
+            ? { hubId, deleteCommentId: extra.deleteCommentId }
+            : undefined,
       )
     },
     [persistOverlays],
@@ -218,11 +238,13 @@ export function TicketStoreProvider({ children }: { children: ReactNode }) {
   )
 
   const addComment = useCallback(
-    (hubId: string, text: string) => {
+    (hubId: string, text: string, author: string) => {
       const trimmed = text.trim()
-      if (!trimmed) return
+      const trimmedAuthor = author.trim()
+      if (!trimmed || !trimmedAuthor) return
       const comment: TicketComment = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        author: trimmedAuthor,
         text: trimmed,
         createdAt: new Date().toISOString(),
       }
@@ -233,6 +255,21 @@ export function TicketStoreProvider({ children }: { children: ReactNode }) {
           comments: [...(current?.comments ?? []), comment],
         }),
         { comment },
+      )
+    },
+    [commitOverlay],
+  )
+
+  const deleteComment = useCallback(
+    (hubId: string, commentId: string) => {
+      const current = overlaysRef.current[hubId]
+      if (!current) return
+      void commitOverlay(
+        hubId,
+        overlayFor(current, {
+          comments: current.comments.filter((comment) => comment.id !== commentId),
+        }),
+        { deleteCommentId: commentId },
       )
     },
     [commitOverlay],
@@ -305,6 +342,7 @@ export function TicketStoreProvider({ children }: { children: ReactNode }) {
       setStatus,
       setNotes,
       addComment,
+      deleteComment,
       exportProgress,
       importProgress,
       resetProgress,
@@ -318,6 +356,7 @@ export function TicketStoreProvider({ children }: { children: ReactNode }) {
       setStatus,
       setNotes,
       addComment,
+      deleteComment,
       exportProgress,
       importProgress,
       resetProgress,

@@ -8,6 +8,7 @@ import {
   ModusWcLink,
   ModusWcSelect,
   ModusWcTextarea,
+  ModusWcTextInput,
   ModusWcTypography,
 } from '@trimble-oss/moduswebcomponents-react'
 import PageHeader from '../components/PageHeader'
@@ -23,6 +24,8 @@ import { useTicketStore } from '../store/TicketStore'
 import { LOCAL_STATUS_OPTIONS, type LocalStatus } from '../types/ticket'
 import { readInputString } from '../utils/modusFormEvents'
 
+const COMMENTER_NAME_KEY = 'wcag-allyant-commenter-name'
+
 function formatWhen(iso: string): string {
   try {
     return new Intl.DateTimeFormat(undefined, {
@@ -34,15 +37,24 @@ function formatWhen(iso: string): string {
   }
 }
 
+function formatCommentMeta(author: string | undefined, createdAt: string): string {
+  const when = formatWhen(createdAt)
+  const name = author?.trim()
+  return name ? `${name} · ${when}` : when
+}
+
 export default function TicketDetailPage() {
   const { hubId = '' } = useParams()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const returnTo = searchParams.get('returnTo')
   const backTo = resolveBackPath(returnTo)
-  const { tickets, getTicket, setStatus, addComment } = useTicketStore()
+  const { tickets, getTicket, setStatus, addComment, deleteComment } = useTicketStore()
   const ticket = getTicket(hubId)
   const [draftComment, setDraftComment] = useState('')
+  const [commenterName, setCommenterName] = useState(
+    () => localStorage.getItem(COMMENTER_NAME_KEY) ?? '',
+  )
 
   useEffect(() => {
     setDraftComment('')
@@ -87,39 +99,18 @@ export default function TicketDetailPage() {
   }
 
   return (
-    <div className="app-page ticket-detail-page">
-      <PageHeader
-        title={`HUB ${ticket.hubId}`}
-        description={ticket.pageName}
-        backTo={backTo}
-        backLabel={backLabelForPath(backTo)}
-        crumbs={buildTicketDetailCrumbs(ticket, returnTo)}
-        compact
-        actions={
-          <>
-            <ModusWcButton
-              variant="outlined"
-              color="tertiary"
-              size="sm"
-              disabled={!previous}
-              onButtonClick={() => previous && navigate(ticketDetailPath(previous.hubId, returnTo))}
-            >
-              Previous on page
-            </ModusWcButton>
-            <ModusWcButton
-              variant="outlined"
-              color="tertiary"
-              size="sm"
-              disabled={!next}
-              onButtonClick={() => next && navigate(ticketDetailPath(next.hubId, returnTo))}
-            >
-              Next on page
-            </ModusWcButton>
-          </>
-        }
-      />
+    <div className="app-page app-page-fill ticket-detail-page">
+      <div className="ticket-detail-body">
+        <PageHeader
+          title={`HUB ${ticket.hubId}`}
+          description={ticket.pageName}
+          backTo={backTo}
+          backLabel={backLabelForPath(backTo)}
+          crumbs={buildTicketDetailCrumbs(ticket, returnTo)}
+          compact
+        />
 
-      <section className="ticket-status-bar" aria-label="Ticket status">
+        <section className="ticket-status-bar" aria-label="Ticket status">
         <div className="ticket-status-bar__row">
           <div className="ticket-status-bar__title">
             <ModusWcIcon name="clipboard" decorative />
@@ -245,12 +236,24 @@ export default function TicketDetailPage() {
               <ul className="app-comment-list" hidden={ticket.comments.length === 0}>
                 {ticket.comments.map((comment) => (
                   <li key={comment.id}>
-                    <ModusWcTypography
-                      hierarchy="p"
-                      size="xs"
-                      customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0"
-                      label={formatWhen(comment.createdAt)}
-                    />
+                    <div className="app-comment-list__header">
+                      <ModusWcTypography
+                        hierarchy="p"
+                        size="xs"
+                        customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0 min-w-0 flex-1"
+                        label={formatCommentMeta(comment.author, comment.createdAt)}
+                      />
+                      <ModusWcButton
+                        variant="borderless"
+                        color="tertiary"
+                        shape="square"
+                        size="sm"
+                        aria-label="Delete comment"
+                        onButtonClick={() => deleteComment(ticket.hubId, comment.id)}
+                      >
+                        <ModusWcIcon name="delete" size="xs" decorative />
+                      </ModusWcButton>
+                    </div>
                     <ModusWcTypography
                       hierarchy="p"
                       size="sm"
@@ -267,6 +270,17 @@ export default function TicketDetailPage() {
                 customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0"
                 label="No comments yet. Use comments to track notes on this finding."
               />
+              <ModusWcTextInput
+                label="Commenter name"
+                size="sm"
+                value={commenterName}
+                placeholder="Your name"
+                onInputChange={(event: CustomEvent) => {
+                  const value = readInputString(event)
+                  setCommenterName(value)
+                  localStorage.setItem(COMMENTER_NAME_KEY, value)
+                }}
+              />
               <ModusWcTextarea
                 label="Add a comment"
                 rows={4}
@@ -279,7 +293,7 @@ export default function TicketDetailPage() {
                 color="primary"
                 size="sm"
                 onButtonClick={() => {
-                  addComment(ticket.hubId, draftComment)
+                  addComment(ticket.hubId, draftComment, commenterName)
                   setDraftComment('')
                 }}
               >
@@ -290,6 +304,28 @@ export default function TicketDetailPage() {
           </ModusWcCard>
         </aside>
       </div>
+      </div>
+
+      <footer className="ticket-detail-nav-footer" aria-label="Tickets on this page">
+        <ModusWcButton
+          variant="outlined"
+          color="tertiary"
+          size="sm"
+          disabled={!previous}
+          onButtonClick={() => previous && navigate(ticketDetailPath(previous.hubId, returnTo))}
+        >
+          Previous on page
+        </ModusWcButton>
+        <ModusWcButton
+          variant="outlined"
+          color="tertiary"
+          size="sm"
+          disabled={!next}
+          onButtonClick={() => next && navigate(ticketDetailPath(next.hubId, returnTo))}
+        >
+          Next on page
+        </ModusWcButton>
+      </footer>
     </div>
   )
 }

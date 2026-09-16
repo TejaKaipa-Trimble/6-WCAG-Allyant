@@ -19,6 +19,7 @@ create table if not exists public.wcag_allyant_ticket_comments (
   hub_id text not null
     references public.wcag_allyant_ticket_overlays (hub_id)
     on delete cascade,
+  author text not null default '',
   body text not null,
   created_at timestamptz not null default now()
 );

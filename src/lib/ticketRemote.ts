@@ -15,6 +15,7 @@ type OverlayRow = {
 type CommentRow = {
   id: string
   hub_id: string
+  author: string | null
   body: string
   created_at: string
 }
@@ -45,6 +46,7 @@ export function assembleOverlays(
     const list = commentsByHub.get(row.hub_id) ?? []
     list.push({
       id: row.id,
+      author: row.author ?? '',
       text: row.body,
       createdAt: row.created_at,
     })
@@ -62,7 +64,7 @@ export async function fetchOverlays(): Promise<Record<string, TicketOverlay>> {
   const supabase = getSupabase()
   const [overlaysResult, commentsResult] = await Promise.all([
     supabase.from(OVERLAYS_TABLE).select('hub_id, status, notes, updated_at'),
-    supabase.from(COMMENTS_TABLE).select('id, hub_id, body, created_at').order('created_at'),
+    supabase.from(COMMENTS_TABLE).select('id, hub_id, author, body, created_at').order('created_at'),
   ])
   throwIfError(overlaysResult.error, 'Load ticket progress')
   throwIfError(commentsResult.error, 'Load ticket comments')
@@ -104,10 +106,22 @@ export async function insertComment(
   const { error } = await supabase.from(COMMENTS_TABLE).insert({
     id: comment.id,
     hub_id: hubId,
+    author: comment.author,
     body: comment.text,
     created_at: comment.createdAt,
   })
   throwIfError(error, 'Save comment')
+}
+
+export async function deleteComment(
+  hubId: string,
+  overlay: Pick<TicketOverlay, 'status' | 'notes' | 'updatedAt'>,
+  commentId: string,
+): Promise<void> {
+  await upsertOverlay(hubId, overlay)
+  const supabase = getSupabase()
+  const { error } = await supabase.from(COMMENTS_TABLE).delete().eq('id', commentId)
+  throwIfError(error, 'Delete comment')
 }
 
 export async function replaceAllOverlays(
@@ -140,6 +154,7 @@ export async function replaceAllOverlays(
     overlay.comments.map((comment) => ({
       id: comment.id,
       hub_id: hubId,
+      author: comment.author ?? '',
       body: comment.text,
       created_at: comment.createdAt,
     })),

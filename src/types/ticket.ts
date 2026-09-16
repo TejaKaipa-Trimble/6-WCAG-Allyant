@@ -25,6 +25,7 @@ export type AuditIssue = {
 
 export type TicketComment = {
   id: string
+  author: string
   text: string
   createdAt: string
 }
