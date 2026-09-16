@@ -16,7 +16,6 @@ import {
   backLabelForPath,
   buildTicketDetailCrumbs,
   isLocalStatus,
-  relatedHubIds,
   resolveBackPath,
   ticketDetailPath,
 } from '../lib/tickets'
@@ -87,12 +86,6 @@ export default function TicketDetailPage() {
     )
   }
 
-  const relatedCount = relatedHubIds(ticket.hubId).length
-  const statusHelp =
-    relatedCount > 1
-      ? `Shared with Modus and Unity. Changing this updates all ${relatedCount} HUB tickets with the same finding on this Modus component.`
-      : 'Shared with Modus and Unity — both teams see the same status.'
-
   return (
     <div className="app-page ticket-detail-page">
       <PageHeader
@@ -144,20 +137,6 @@ export default function TicketDetailPage() {
             }}
           />
         </div>
-        <ModusWcTypography
-          hierarchy="p"
-          size="sm"
-          customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0"
-          label={statusHelp}
-        />
-        <ModusWcTypography
-          hierarchy="p"
-          size="xs"
-          customClass="text-[var(--modus-wc-color-base-content-low-contrast)] !m-0"
-          label={`Allyant export status: ${ticket.allyantStatus || '—'}${
-            ticket.updatedAt ? ` · Last tracker update ${formatWhen(ticket.updatedAt)}` : ''
-          }`}
-        />
       </section>
 
       <div className="ticket-detail-split">
